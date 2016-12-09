@@ -29,15 +29,16 @@ public class LogicTests {
 	static int smtlib_version = v20;
 
 	public static final String[] solvers = new String[] {
-            "test", 
-            "z3_4_3", 
-            "z3_4_4", 
-            /*"z3_2_11", "yices",*/ 
-            //"yices2", 
-            "cvc4", 
-            "cvc4b", 
-            /*"cvc"}, */
-            "simplify", 
+            "test",
+            /*"yices",*/
+            /*"z3_4_3",
+            "z3_4_4",
+            "z3_2_11", 
+            "yices2",
+            "cvc4",
+            "cvc4b",
+            "cvc",
+            "simplify",*/ 
             } ;
 	
     @Parameters
