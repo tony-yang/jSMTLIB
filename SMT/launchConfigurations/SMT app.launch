@@ -12,7 +12,7 @@
 </listAttribute>
 <booleanAttribute key="org.eclipse.jdt.launching.ATTR_USE_START_ON_FIRST_THREAD" value="true"/>
 <stringAttribute key="org.eclipse.jdt.launching.MAIN_TYPE" value="org.smtlib.SMT"/>
-<stringAttribute key="org.eclipse.jdt.launching.PROGRAM_ARGUMENTS" value="temp.smt2 --solver yices --exec /Users/tony/dev/yices-1.0.40/bin/yices"/>
+<stringAttribute key="org.eclipse.jdt.launching.PROGRAM_ARGUMENTS" value="temp.smt2 --solver peticodiac --exec /Users/tony/dev/yices-1.0.40/bin/yices"/>
 <stringAttribute key="org.eclipse.jdt.launching.PROJECT_ATTR" value="SMT"/>
 <stringAttribute key="org.eclipse.jdt.launching.WORKING_DIRECTORY" value="${project_loc:SMT}/tests"/>
 </launchConfiguration>
