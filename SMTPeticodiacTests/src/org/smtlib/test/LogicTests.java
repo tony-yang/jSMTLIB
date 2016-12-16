@@ -29,7 +29,8 @@ public class LogicTests {
 	static int smtlib_version = v20;
 
 	public static final String[] solvers = new String[] {
-            "test"
+            "test",
+            "peticodiac"
             /*"yices",*/
             /*"z3_4_3",
             "z3_4_4",
@@ -60,7 +61,7 @@ public class LogicTests {
 	
 	@Before
 	public void setup() {
-		//System.out.println(solvername); // In SMTTests
+		//System.out.println(solvername); // In SMTPeticodiacTests
 		init();
 	}
 	

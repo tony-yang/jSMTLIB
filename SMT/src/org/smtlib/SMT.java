@@ -712,7 +712,7 @@ public class SMT {
 		String adapterClassName = null;
 		
 		// Find the adapter, executable, command
-		if (!solvername.equals(Utils.TEST_SOLVER)) {
+		if (!solvername.equals(Utils.TEST_SOLVER) && !solvername.equals("peticodiac")) {
 			String solvernameNormalized = solvername.replace('-','_').replace('.', '_');
 			// But use this if it is specified
 			if (props != null) {
@@ -765,6 +765,8 @@ public class SMT {
 				usage();
 				return null;
 			}
+		} else if (solvername.equals("peticodiac")) {
+			adapterClass = org.smtlib.solvers.Solver_peticodiac.class;
 		} else {
 			adapterClass = org.smtlib.solvers.Solver_test.class;
 		}

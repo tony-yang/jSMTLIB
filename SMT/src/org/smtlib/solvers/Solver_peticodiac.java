@@ -8,6 +8,11 @@ package org.smtlib.solvers;
 import java.io.FileOutputStream;
 import java.io.PrintStream;
 import java.util.*;
+import java.io.File;
+import java.io.BufferedWriter;
+import java.io.FileWriter;
+import java.io.IOException;
+import java.io.StringWriter;
 
 import org.smtlib.ICommand.Ideclare_const;
 import org.smtlib.ICommand.Ideclare_fun;
@@ -69,6 +74,15 @@ public class Solver_peticodiac implements ISolver {
 		options.putAll(Utils.defaults);
 	}
 	
+	/** Track the number of variables and bounds to be used in the tableau */
+	protected int num_vars;
+	protected int num_constrs;
+	
+	/** The intermediate output file path using our input format */
+	protected File outputFile;
+	protected StringWriter stringOutput;
+	protected BufferedWriter outputWriter;
+	
 	
 	
 	/** Constructor for an instance of this test solver class; the second argument is ignored - it is 
@@ -78,15 +92,32 @@ public class Solver_peticodiac implements ISolver {
 	 * @param exec the executable for the solver, ignored for the case of this test solver
 	 */
 	public Solver_peticodiac(SMT.Configuration smtConfig, String exec) {
+		System.out.println("Start peticodiac");
 		this.smtConfig = smtConfig;
 		this.symTable = new SymbolTable(smtConfig);
 		checkSatStatus = null;
+		num_vars = 0;
+		num_constrs = 0;
+		if (!this.smtConfig.files.isEmpty()) {
+			outputFile = new File("/tmp/peticodiac/" + this.smtConfig.files.get(0).toString() + ".peticodiac");
+			if (outputFile.exists()) {
+				outputFile.delete();
+			}
+			try {
+				outputWriter = new BufferedWriter(new FileWriter(outputFile));
+			} catch (IOException e) {
+				// ignore Error
+			}
+		} else {
+			outputWriter = new BufferedWriter(new StringWriter());
+		}
 	}
 	
 	@Override
 	public IResponse start() {
 		assertionSetStack.add(0,new LinkedList<IExpr>());
 		if (smtConfig.verbose != 0) smtConfig.log.logDiag("#start");
+		System.out.println("Peticodiac start success");
 		return smtConfig.responseFactory.success();
 	}
 	
@@ -112,6 +143,7 @@ public class Solver_peticodiac implements ISolver {
 
 	@Override public void comment(String comment) {
 		// No action
+		System.out.println("Peticodiac comment = " + comment.toString() + " with no action");
 	}
 	
 	@Override
@@ -131,23 +163,48 @@ public class Solver_peticodiac implements ISolver {
 	@Override
 	public IResponse exit() {
 		if (smtConfig.verbose != 0) smtConfig.log.logDiag("#exit");
+		System.out.println("Peticodiac exit success");
+		try {
+			this.outputWriter.close();
+			System.out.println("Peticodiac outputWriter closed");
+		} catch (IOException e) {
+			// ignore
+			System.out.println("Peticodiac outputWriter close failed");
+		}
 		return smtConfig.responseFactory.success();
 	}
 	
 	@Override
 	public IResponse echo(IStringLiteral arg) {
+		System.out.println("Peticodiac echo arg = " + arg.toString());
 		return arg;
 	}
 
 	@Override
 	public IResponse assertExpr(IExpr expr) {
 		//TODO: Write simplified output to file and determine the NUM_CONSTRS
+		System.out.println("Peticodiac Assert Expression with expr = " + expr.toString());
+		// Simplify the expression
+		
+		
+		try {
+			// Output the first line "p cnf NUM_VARS NUM_CONSTRS" to indicate the number of contraints and bounds
+			this.outputWriter.write("p cnf " + this.num_vars + " " + this.num_constrs);
+			this.outputWriter.newLine();
+			
+			// Output the simplified expression in terms of tableau coefficient and bounds
+			
+		} catch (IOException e) {
+			// ignore
+		}
+		
 		return smtConfig.responseFactory.success();
 	}
 	
 	@Override
 	public IResponse get_assertions() {
 		//Not supported since we don't need interactive mode
+		System.out.println("Peticodiac get_assertions not supported");
 		return smtConfig.responseFactory.unsupported();
 	}
 	
@@ -168,76 +225,108 @@ public class Solver_peticodiac implements ISolver {
 	@Override
 	public IResponse check_sat() {
 		// We use this adapter only to generate the intermediate input format for peticodaic
+		System.out.println("Peticodiac check_sat not supported");
 		return smtConfig.responseFactory.unsupported();
 	}
 	
 	@Override
 	public IResponse check_sat_assuming(IExpr ... exprs) {
 		// We use this adapter only to generate the intermediate input format for peticodaic
+		System.out.println("Peticodiac check_sat_assuming not supported with exprs = " + exprs.toString());
 		return smtConfig.responseFactory.unsupported();
 	}
 	
 	@Override
 	public IResponse get_value(IExpr... terms) {
+		System.out.println("Peticodiac get_value not supported");
 		return smtConfig.responseFactory.unsupported();
 	}
 
 	@Override
 	public IResponse get_assignment() {
+		System.out.println("Peticodiac get_assignment not supported");
 		return smtConfig.responseFactory.unsupported();
 	}
 	
 	@Override
 	public IResponse get_proof() {
+		System.out.println("Peticodiac get_proof not supported");
 		return smtConfig.responseFactory.unsupported();
 	}
 
 	@Override
 	public IResponse get_model() {
+		System.out.println("Peticodiac get_model not supported");
 		return smtConfig.responseFactory.unsupported();
 	}
 
 	@Override
 	public IResponse get_unsat_core() {
+		System.out.println("Peticodiac get_unsat_core not supported");
 		return smtConfig.responseFactory.unsupported();
 	}
 
 	@Override
 	public IResponse pop(int number) {
 		//TODO: Figure out if we need to support the pop() method in our benchmark
+		System.out.println("Peticodiac pop number = " + number + " with action success");
 		return smtConfig.responseFactory.success();
 	}
 
 	@Override
 	public IResponse push(int number) {
 		//TODO: Figure out if we need to support the push() method in our benchmark
+		System.out.println("Peticodiac push number = " + number + " with action success");
 		return smtConfig.responseFactory.success();
 	}
 
 	@Override
 	public IResponse set_logic(String logicName, /*@Nullable*/ IPos pos) {
 		//TODO: Output the logic used in the comment section of our input format
+		System.out.println("Peticodiac set_logic with name = [" + logicName + "] position = <" + pos.toString() + "> with success");
+		try {
+			this.outputWriter.write("# set_logic: " + logicName);
+			this.outputWriter.newLine();
+		} catch (IOException e) {
+			// ignore
+		}
 		return smtConfig.responseFactory.success();
 	}
 	
 	@Override
 	public IResponse set_option(IKeyword key, IAttributeValue value) {
+		System.out.println("Peticodiac set_option not supported with key = [" + key.toString() + "] and value <" + value.toString() + ">");
+		try {
+			this.outputWriter.write("# " + key.toString() + ": " + value.toString());
+			this.outputWriter.newLine();
+		} catch (IOException e) {
+			// ignore
+		}
 		return smtConfig.responseFactory.unsupported();
 	}
 
 	@Override
 	public IResponse get_option(IKeyword key) {
+		System.out.println("Peticodiac get_option not supported with key = [" + key.toString() + "]");
 		return smtConfig.responseFactory.unsupported();
 	}
 	
 	@Override
 	public IResponse set_info(IKeyword key, IAttributeValue value) {
 		//TODO: Output the info in the comment section of our input format
+		System.out.println("Peticodiac set_info with key = [" + key.toString() + "] and value = <" + value.toString() + "> with success");
+		try {
+			this.outputWriter.write("# " + key.toString() + ": " + value.toString());
+			this.outputWriter.newLine();
+		} catch (IOException e) {
+			// ignore
+		}
 		return smtConfig.responseFactory.success();
 	}
 
 	@Override
 	public IResponse get_info(IKeyword key) {
+		System.out.println("Peticodiac get_info not supported");
 		return smtConfig.responseFactory.unsupported();
 	}
 	
@@ -248,28 +337,36 @@ public class Solver_peticodiac implements ISolver {
 	@Override 
 	public IResponse declare_const(Ideclare_const cmd) {
 		//TODO: Output the NUM_VARS
+		this.num_vars += 1;
+		System.out.println("Peticodiac declare_const has " + num_vars + " variables with cmd = " + cmd.toString());
 		return smtConfig.responseFactory.success();
 	}
 
 	@Override 
 	public IResponse declare_fun(Ideclare_fun cmd) {
 		//TODO: Output the NUM_VARS
+		this.num_vars += 1;
+		System.out.println("Peticodiac declare_fun has " + num_vars + " variables with cmd = " + cmd.toString());
 		return smtConfig.responseFactory.success();
 	}
 
 	@Override
 	public IResponse define_fun(Idefine_fun cmd) {
 		//TODO: Output the NUM_VARS
+		this.num_vars += 1;
+		System.out.println("Peticodiac define_fun has " + num_vars + " variables with cmd = " + cmd.toString());
 		return smtConfig.responseFactory.success();
 	}
 	
 	@Override 
 	public IResponse declare_sort(Ideclare_sort cmd) {
+		System.out.println("Peticodiac declare_sort with cmd = " + cmd.toString() + " not supported");
 		return smtConfig.responseFactory.unsupported();
 	}
 	
 	@Override
 	public IResponse define_sort(Idefine_sort cmd) {
+		System.out.println("Peticodiac define_sort with cmd = " + cmd.toString() + " not supported");
 		return smtConfig.responseFactory.unsupported();
 	}
 	
