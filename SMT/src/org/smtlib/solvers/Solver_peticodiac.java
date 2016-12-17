@@ -99,7 +99,16 @@ public class Solver_peticodiac implements ISolver {
 		num_vars = 0;
 		num_constrs = 0;
 		if (!this.smtConfig.files.isEmpty()) {
-			outputFile = new File("/tmp/peticodiac/" + this.smtConfig.files.get(0).toString() + ".peticodiac");
+			String inputFile = this.smtConfig.files.get(0).toString();
+			String inputFilename = inputFile.substring(inputFile.lastIndexOf('/') + 1);
+			System.out.println("smtConfig.files not empty with file = " + inputFilename);
+			
+			if (this.smtConfig.peticodiacout == null) {
+				outputFile = new File("/tmp/peticodiac/" + inputFilename + ".peticodiac");
+			} else {
+				outputFile = new File(this.smtConfig.peticodiacout.toString().toLowerCase() + "/" + inputFilename + ".peticodiac");
+			}
+			
 			if (outputFile.exists()) {
 				outputFile.delete();
 			}
@@ -109,6 +118,7 @@ public class Solver_peticodiac implements ISolver {
 				// ignore Error
 			}
 		} else {
+			System.out.println("smtConfig.files empty");
 			outputWriter = new BufferedWriter(new StringWriter());
 		}
 	}
@@ -283,7 +293,7 @@ public class Solver_peticodiac implements ISolver {
 	@Override
 	public IResponse set_logic(String logicName, /*@Nullable*/ IPos pos) {
 		//TODO: Output the logic used in the comment section of our input format
-		System.out.println("Peticodiac set_logic with name = [" + logicName + "] position = <" + pos.toString() + "> with success");
+		//System.out.println("Peticodiac set_logic with name = [" + logicName + "] position = <" + pos.toString() + "> with success");
 		try {
 			this.outputWriter.write("# set_logic: " + logicName);
 			this.outputWriter.newLine();

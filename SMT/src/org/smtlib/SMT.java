@@ -161,6 +161,7 @@ public class SMT {
 		
 		/** FIXME */
 		/*@Nullable*/ public String out = null;
+		/*@Nullable*/ public String peticodiacout = null;
 		/*@Nullable*/ public String diag = null;
 		
 		/** The port to use for socket communications; a port > 0 supersedes any file value, but is
@@ -594,6 +595,13 @@ public class SMT {
 				}
 				options.out = args[i++];
 
+			} else if ("--peticodiacout".equals(s)) {
+				if (i >= args.length) {
+					error("The --peticodiacout option expects an argument");
+					usage();
+					return 1;
+				}
+				options.peticodiacout = args[i++];
 			} else if ("--port".equals(s)) {
 				if (i >= args.length) {
 					error("The --port option expects an argument");
@@ -826,6 +834,7 @@ public class SMT {
 		System.out.println("       --exec   [-e] <path>");
 		System.out.println("       --logics [-L] <path>");
 		System.out.println("       --out         <filename or 'stdout' or 'stderr'>");
+		System.out.println("       --peticodiacout <filename>");
 		System.out.println("       --diag        <filename or 'stdout' or 'stderr'>");
 		System.out.println("       --port        <int>");
 		System.out.println("       --text        <string>");
