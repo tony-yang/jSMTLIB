@@ -5,6 +5,6 @@
 (set-info :status sat)
 (set-info :notes |This benchmark is designed to check if the DP supports bignumbers.|)
 (declare-fun x1 () Real)
-(assert x1)
+(assert (> x1 6))
 (check-sat)
 (exit)
