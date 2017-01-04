@@ -421,14 +421,20 @@ public class Solver_peticodiac extends Solver_test implements ISolver {
 			while (!expressionQueue.isEmpty()) {
 				String item = expressionQueue.poll();
 				if ("*".equals(item)) {
-					String stackItem = expressionStack.pop();
-					String stackItem2 = expressionStack.pop();
-					int index = expressions.get(0).indexOf(stackItem);
+					String exprSymbol = expressionStack.pop();
+					String exprCoefficient = expressionStack.pop();
+					int index = expressions.get(0).indexOf(exprSymbol);
 					int listSize = expressions.size();
-					if (expressions.get(listSize-1).size() <= 0) {
-						expressions.get(listSize-1).add(0, "1");
-					}
-					expressions.get(listSize-1).add(index, stackItem2);
+					expressions.get(listSize-1).add(index, exprCoefficient);
+				} else if ("/".equals(item)) {
+					String exprDenominator = expressionStack.pop();
+					String exprNumerator = expressionStack.pop();
+					String fraction = exprNumerator + "/" + exprDenominator;
+					expressionStack.push(fraction);
+				} else if ("-".equals(item)) {
+					String exprCoefficient = expressionStack.pop();
+					String negateCoefficient = "-" + exprCoefficient;
+					expressionStack.push(negateCoefficient);
 				} else if (">".equals(item)) {
 					String lowerBound = expressionStack.pop();
 					int index = expressions.get(0).indexOf("LowerBound");
