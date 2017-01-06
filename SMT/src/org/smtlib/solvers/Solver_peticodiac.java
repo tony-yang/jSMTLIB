@@ -437,13 +437,22 @@ public class Solver_peticodiac extends Solver_test implements ISolver {
 					expressionStack.push(negateCoefficient);
 				} else if (">".equals(item)) {
 					String lowerBound = expressionStack.pop();
-					int index = expressions.get(0).indexOf("LowerBound");
+					int lowerBoundIndex = expressions.get(0).indexOf("LowerBound");
 					int listSize = expressions.size();
 					if (expressions.get(listSize-1).size() <= 0) {
 						expressions.get(listSize-1).add(0, "1");
 					}
-					expressions.get(listSize-1).add(index, lowerBound);
-					expressions.get(listSize-1).add(index+1, "NO_BOUND");
+					expressions.get(listSize-1).add(lowerBoundIndex, lowerBound);
+					expressions.get(listSize-1).add(lowerBoundIndex+1, "NO_BOUND");
+				} else if ("<".equals(item)) {
+					String upperBound = expressionStack.pop();
+					int lowerBoundIndex = expressions.get(0).indexOf("LowerBound");
+					int listSize = expressions.size();
+					if (expressions.get(listSize-1).size() <= 0) {
+						expressions.get(listSize-1).add(0, "1");
+					}
+					expressions.get(listSize-1).add(lowerBoundIndex, "NO_BOUND");
+					expressions.get(listSize-1).add(lowerBoundIndex+1, upperBound);
 				} else {
 					expressionStack.push(item);
 				}
