@@ -453,6 +453,15 @@ public class Solver_peticodiac extends Solver_test implements ISolver {
 					}
 					expressions.get(listSize-1).add(lowerBoundIndex, "NO_BOUND");
 					expressions.get(listSize-1).add(lowerBoundIndex+1, upperBound);
+				} else if ("=".equals(item)) {
+					String bound = expressionStack.pop();
+					int lowerBoundIndex = expressions.get(0).indexOf("LowerBound");
+					int listSize = expressions.size();
+					if (expressions.get(listSize-1).size() <= 0) {
+						expressions.get(listSize-1).add(0, "1");
+					}
+					expressions.get(listSize-1).add(lowerBoundIndex, bound);
+					expressions.get(listSize-1).add(lowerBoundIndex+1, bound);
 				} else {
 					expressionStack.push(item);
 				}
