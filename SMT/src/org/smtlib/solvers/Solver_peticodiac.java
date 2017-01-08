@@ -496,10 +496,10 @@ public class Solver_peticodiac extends Solver_test implements ISolver {
 					 "+".equals(e.toString().substring(1, 2)) ||
 					 "-".equals(e.toString().substring(1, 2)) ||
 					 "=".equals(e.toString().substring(1, 2)) ||
-					 "<".equals(e.toString().substring(1, 2)) ||
-					 ">".equals(e.toString().substring(1, 2)) ||
-					 "<=".equals(e.toString().substring(1, 2)) ||
-					 ">=".equals(e.toString().substring(1, 2)) ||
+					 "<".equals(e.toString().substring(1, 2)) ||  // Treating < and <= the same
+					 ">".equals(e.toString().substring(1, 2)) ||  // Treating > and >= the same
+					 "<=".equals(e.toString().substring(1, 2)) ||  // TODO: Should <= behaves the same as <
+					 ">=".equals(e.toString().substring(1, 2)) ||  // TODO: Should >= behaves the same as >
 					 "%".equals(e.toString().substring(1, 2)) )) {
 				expressionQueue.add(e.toString().substring(1, 2));
 			} else {
