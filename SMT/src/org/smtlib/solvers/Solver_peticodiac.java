@@ -419,6 +419,7 @@ public class Solver_peticodiac extends Solver_test implements ISolver {
 			expressions.get(0).add("UpperBound");
 			Stack<String> expressionStack = new Stack<String>();
 			while (!expressionQueue.isEmpty()) {
+				System.out.println(">> The expression Stack >> " + expressionStack.toString());
 				String item = expressionQueue.poll();
 				if ("*".equals(item)) {
 					String exprSymbol = expressionStack.pop();
@@ -462,6 +463,8 @@ public class Solver_peticodiac extends Solver_test implements ISolver {
 					}
 					expressions.get(listSize-1).add(lowerBoundIndex, bound);
 					expressions.get(listSize-1).add(lowerBoundIndex+1, bound);
+				} else if ("+".equals(item)) {
+					// Drop the + operator, do nothing
 				} else {
 					expressionStack.push(item);
 				}
