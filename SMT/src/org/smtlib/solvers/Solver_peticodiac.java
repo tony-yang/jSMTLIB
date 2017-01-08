@@ -426,7 +426,13 @@ public class Solver_peticodiac extends Solver_test implements ISolver {
 					String exprCoefficient = expressionStack.pop();
 					int index = expressions.get(0).indexOf(exprSymbol);
 					int listSize = expressions.size();
-					expressions.get(listSize-1).add(index, exprCoefficient);
+					if (index < expressions.get(listSize-1).size() &&
+							!expressions.get(listSize-1).get(index).isEmpty()) {
+						Integer newCoeff = Integer.valueOf(expressions.get(listSize-1).get(index)) + Integer.valueOf(exprCoefficient);
+						expressions.get(listSize-1).set(index, newCoeff.toString());
+					} else {
+						expressions.get(listSize-1).add(index, exprCoefficient);
+					}
 				} else if ("/".equals(item)) {
 					String exprDenominator = expressionStack.pop();
 					String exprNumerator = expressionStack.pop();
@@ -515,7 +521,9 @@ public class Solver_peticodiac extends Solver_test implements ISolver {
 		public String visit(ISymbol e) throws IVisitor.VisitorException {
 			System.out.println("Symbol is " + e.value());
 			expressionQueue.add(e.value());
-			expressions.get(0).add(e.value());
+			if (!expressions.get(0).contains(e.value())) {
+				expressions.get(0).add(e.value());
+			}
 			return e.value();
 		}
 	}
