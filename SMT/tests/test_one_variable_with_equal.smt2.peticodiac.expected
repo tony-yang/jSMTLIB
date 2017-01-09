@@ -5,5 +5,5 @@
 # :status: sat
 # :notes: |This benchmark is designed to check if the DP supports bignumbers.|
 p cnf 1 1
-c 3
+c 3.0
 b 2 6 6

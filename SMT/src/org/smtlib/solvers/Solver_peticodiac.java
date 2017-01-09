@@ -8,6 +8,8 @@ package org.smtlib.solvers;
 import java.io.FileOutputStream;
 import java.io.PrintStream;
 import java.util.*;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.io.File;
 import java.io.BufferedWriter;
 import java.io.FileWriter;
@@ -45,6 +47,7 @@ public class Solver_peticodiac extends Solver_test implements ISolver {
 	/** Track the number of variables and bounds to be used in the tableau */
 	protected int numVars;
 	protected int numConstrs;
+	protected SortedSet<String> expressionVariables;
 	
 	/** The intermediate output file path using our input format */
 	protected File outputFile;
@@ -63,6 +66,7 @@ public class Solver_peticodiac extends Solver_test implements ISolver {
 		super(smtConfig, "");
 		numVars = 0;
 		numConstrs = 0;
+		expressionVariables = new TreeSet<String>();
 		if (!this.smtConfig.files.isEmpty()) {
 			String inputFile = this.smtConfig.files.get(0).toString();
 			String inputFilename = inputFile.substring(inputFile.lastIndexOf('/') + 1);
@@ -140,7 +144,7 @@ public class Solver_peticodiac extends Solver_test implements ISolver {
 		List<ArrayList<String>> simplifiedExpression;
 		
 		try {
-			simplifiedExpression = translate(expr);
+			simplifiedExpression = translate(expr, expressionVariables);
 		} catch (IVisitor.VisitorException e) {
 			System.out.println("Error: Peticodiac assert failed: " + e.getMessage());
 			return smtConfig.responseFactory.error("Peticodiac assert command failed: " + e.getMessage());
@@ -160,7 +164,8 @@ public class Solver_peticodiac extends Solver_test implements ISolver {
 			for (int i = 1; i <= numConstrs; i++) {
 				output += "c";
 				for (int j = 0; j < this.numVars; j++) {
-					output += " " + simplifiedExpression.get(i).get(j);
+					String value = simplifiedExpression.get(i).get(j).equals("na") ? "0.0" : simplifiedExpression.get(i).get(j);
+					output += " " + value;
 				}
 				output += "\nb " + (i+1)
 						+ " "    + simplifiedExpression.get(i).get(this.numVars)
@@ -339,13 +344,18 @@ public class Solver_peticodiac extends Solver_test implements ISolver {
 		return id.toString(); // FIXME composite definitions; encode the String?
 	}
 
+	private String parseSymbolFromCommand(String cmd) {
+		String[] cmdArray = cmd.split(" ");
+		return cmdArray[1];
+	}
+	
 	@Override 
 	public IResponse declare_const(Ideclare_const cmd) {
 		IResponse status = super.declare_const(cmd);
 		if (status.isError()) {return status;}
 		
-		//TODO: Output the NUM_VARS
 		this.numVars += 1;
+		this.expressionVariables.add(parseSymbolFromCommand(cmd.toString()));
 		System.out.println("Peticodiac declare_const has " + numVars + " variables with cmd = " + cmd.toString());
 		return smtConfig.responseFactory.success();
 	}
@@ -355,8 +365,8 @@ public class Solver_peticodiac extends Solver_test implements ISolver {
 		IResponse status = super.declare_fun(cmd);
 		if (status.isError()) {return status;}
 		
-		//TODO: Output the NUM_VARS
 		this.numVars += 1;
+		this.expressionVariables.add(parseSymbolFromCommand(cmd.toString()));
 		System.out.println("Peticodiac declare_fun has " + numVars + " variables with cmd = " + cmd.toString());
 		return smtConfig.responseFactory.success();
 	}
@@ -366,8 +376,8 @@ public class Solver_peticodiac extends Solver_test implements ISolver {
 		IResponse status = super.define_fun(cmd);
 		if (status.isError()) {return status;}
 		
-		//TODO: Output the NUM_VARS
 		this.numVars += 1;
+		this.expressionVariables.add(parseSymbolFromCommand(cmd.toString()));
 		System.out.println("Peticodiac define_fun has " + numVars + " variables with cmd = " + cmd.toString());
 		return smtConfig.responseFactory.success();
 	}
@@ -390,8 +400,8 @@ public class Solver_peticodiac extends Solver_test implements ISolver {
 		return smtConfig.responseFactory.unsupported();
 	}
 	
-	public /*@Nullable*/ List<ArrayList<String>> translate(IExpr expr) throws IVisitor.VisitorException {
-		Translator exprTranslator = new Translator();
+	public /*@Nullable*/ List<ArrayList<String>> translate(IExpr expr, SortedSet<String> expressionVariables) throws IVisitor.VisitorException {
+		Translator exprTranslator = new Translator(expressionVariables);
 		String returnedExpr = expr.accept(exprTranslator);
 		System.out.println("returnedExpr = " + returnedExpr);
 		System.out.println("==== translator queue = " + exprTranslator.getExpressionQueue());
@@ -402,12 +412,12 @@ public class Solver_peticodiac extends Solver_test implements ISolver {
 	public class Translator extends IVisitor.NullVisitor<String> {
 		private Queue<String> expressionQueue;
 		private List<ArrayList<String>> expressions;
-		public Translator() {
+		public Translator(SortedSet<String> expressionVariables) {
 			System.out.println("In Translator creating visitor");
 			expressionQueue = new ArrayDeque<String>();
 			expressions = new ArrayList<ArrayList<String>>();
-			expressions.add(new ArrayList<String>()); // For first row symbol list
-			expressions.add(new ArrayList<String>()); // For second row first expression
+			expressions.add(new ArrayList<String>(expressionVariables)); // For first row symbol list
+			expressions.add(new ArrayList<String>(Collections.nCopies(expressionVariables.size() + 2, "na"))); // For second row first expression
 		}
 		
 		public String getExpressionQueue() {
@@ -421,23 +431,31 @@ public class Solver_peticodiac extends Solver_test implements ISolver {
 			while (!expressionQueue.isEmpty()) {
 				System.out.println(">> The expression Stack >> " + expressionStack.toString());
 				String item = expressionQueue.poll();
+				
+				// Parse the variable to handle the edge case when a symbol has no coefficient
+				// Set all variable coefficients to 1 to begin with
+				String symbolPattern = "[a-zA-Z_\\-\\~\\!\\$\\^\\&\\*\\+\\=\\.\\?\\/\\<\\>@%][0-9a-zA-Z_\\-\\~\\!\\$\\^\\&\\*\\+\\=\\.\\?\\/\\<\\>@%]*";
+				Pattern r = Pattern.compile(symbolPattern);
+				Matcher m = r.matcher(item);
+				
 				if ("*".equals(item)) {
 					String exprSymbol = expressionStack.pop();
 					String exprCoefficient = expressionStack.pop();
 					int index = expressions.get(0).indexOf(exprSymbol);
 					int listSize = expressions.size();
-					if (index < expressions.get(listSize-1).size() &&
-							!expressions.get(listSize-1).get(index).isEmpty()) {
-						Integer newCoeff = Integer.valueOf(expressions.get(listSize-1).get(index)) + Integer.valueOf(exprCoefficient);
+					Double existingCoeff = Double.valueOf(expressions.get(listSize-1).get(index));
+					if (existingCoeff == 1.0) {
+						Double newCoeff = existingCoeff * Double.valueOf(exprCoefficient);
 						expressions.get(listSize-1).set(index, newCoeff.toString());
 					} else {
-						expressions.get(listSize-1).add(index, exprCoefficient);
+						Double newCoeff = existingCoeff + Double.valueOf(exprCoefficient);
+						expressions.get(listSize-1).set(index, newCoeff.toString());
 					}
 				} else if ("/".equals(item)) {
-					String exprDenominator = expressionStack.pop();
-					String exprNumerator = expressionStack.pop();
-					String fraction = exprNumerator + "/" + exprDenominator;
-					expressionStack.push(fraction);
+					Double exprDenominator = Double.valueOf(expressionStack.pop());
+					Double exprNumerator = Double.valueOf(expressionStack.pop());
+					Double fraction = exprNumerator/exprDenominator;
+					expressionStack.push(fraction.toString());
 				} else if ("-".equals(item)) {
 					String exprCoefficient = expressionStack.pop();
 					String negateCoefficient = "-" + exprCoefficient;
@@ -446,31 +464,29 @@ public class Solver_peticodiac extends Solver_test implements ISolver {
 					String lowerBound = expressionStack.pop();
 					int lowerBoundIndex = expressions.get(0).indexOf("LowerBound");
 					int listSize = expressions.size();
-					if (expressions.get(listSize-1).size() <= 0) {
-						expressions.get(listSize-1).add(0, "1");
-					}
-					expressions.get(listSize-1).add(lowerBoundIndex, lowerBound);
-					expressions.get(listSize-1).add(lowerBoundIndex+1, "NO_BOUND");
+					expressions.get(listSize-1).set(lowerBoundIndex, lowerBound);
+					expressions.get(listSize-1).set(lowerBoundIndex+1, "NO_BOUND");
 				} else if ("<".equals(item)) {
 					String upperBound = expressionStack.pop();
 					int lowerBoundIndex = expressions.get(0).indexOf("LowerBound");
 					int listSize = expressions.size();
-					if (expressions.get(listSize-1).size() <= 0) {
-						expressions.get(listSize-1).add(0, "1");
-					}
-					expressions.get(listSize-1).add(lowerBoundIndex, "NO_BOUND");
-					expressions.get(listSize-1).add(lowerBoundIndex+1, upperBound);
+					expressions.get(listSize-1).set(lowerBoundIndex, "NO_BOUND");
+					expressions.get(listSize-1).set(lowerBoundIndex+1, upperBound);
 				} else if ("=".equals(item)) {
 					String bound = expressionStack.pop();
 					int lowerBoundIndex = expressions.get(0).indexOf("LowerBound");
 					int listSize = expressions.size();
-					if (expressions.get(listSize-1).size() <= 0) {
-						expressions.get(listSize-1).add(0, "1");
-					}
-					expressions.get(listSize-1).add(lowerBoundIndex, bound);
-					expressions.get(listSize-1).add(lowerBoundIndex+1, bound);
+					expressions.get(listSize-1).set(lowerBoundIndex, bound);
+					expressions.get(listSize-1).set(lowerBoundIndex+1, bound);
 				} else if ("+".equals(item)) {
 					// Drop the + operator, do nothing
+				} else if (m.find()) {
+					int index = expressions.get(0).indexOf(item);
+					int listSize = expressions.size();
+					if ("na".equals(expressions.get(listSize-1).get(index).toLowerCase())) {
+						expressions.get(listSize-1).set(index, "1.0");
+					}
+					expressionStack.push(item);
 				} else {
 					expressionStack.push(item);
 				}
@@ -521,9 +537,6 @@ public class Solver_peticodiac extends Solver_test implements ISolver {
 		public String visit(ISymbol e) throws IVisitor.VisitorException {
 			System.out.println("Symbol is " + e.value());
 			expressionQueue.add(e.value());
-			if (!expressions.get(0).contains(e.value())) {
-				expressions.get(0).add(e.value());
-			}
 			return e.value();
 		}
 	}
