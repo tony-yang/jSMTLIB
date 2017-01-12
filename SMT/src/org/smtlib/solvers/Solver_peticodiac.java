@@ -410,7 +410,7 @@ public class Solver_peticodiac extends Solver_test implements ISolver {
 	}
 	
 	public class Translator extends IVisitor.NullVisitor<String> {
-		private Queue<String> expressionQueue;
+		private Deque<String> expressionQueue;
 		private List<ArrayList<String>> expressions;
 		public Translator(SortedSet<String> expressionVariables) {
 			System.out.println("In Translator creating visitor");
@@ -457,55 +457,77 @@ public class Solver_peticodiac extends Solver_test implements ISolver {
 					Double fraction = exprNumerator/exprDenominator;
 					expressionStack.push(fraction.toString());
 				} else if ("-".equals(item)) {
-					String exprCoefficient = expressionStack.pop();
-					String negateCoefficient = "-" + exprCoefficient;
-					expressionStack.push(negateCoefficient);
+					// TODO: Need to handle double negate in the future for completeness
+					int expressionStackSize = expressionStack.size();
+					
+					if (expressionStackSize > 1) {
+						// Converting all but the first element from " - symbol" to "+ (-symbol)" 
+						for (int i = expressionStackSize - 1; i > 0; i--) {
+							String exprCoefficient = expressionStack.get(i);
+							String negateCoefficient = "-" + exprCoefficient;
+							expressionStack.set(i, negateCoefficient);
+						}
+					} else {
+						String exprCoefficient = expressionStack.pop();
+						String negateCoefficient = "-" + exprCoefficient;
+						expressionStack.push(negateCoefficient);
+					}
 				} else if ("+".equals(item)) {
 					while (!expressionStack.isEmpty()) {
 						String exprSymbol = expressionStack.pop();
 						String exprCoefficient = "1.0";
+						if ("-".equals(exprSymbol.substring(0, 1))) {
+							exprCoefficient ="-1.0";
+							exprSymbol = exprSymbol.substring(1);
+						}
 						updateCoefficient(exprSymbol, exprCoefficient);
 					}
 				} else if (">".equals(item)) {
-					int expressionStackSize = expressionStack.size();
-					
 					String lowerBound = expressionStack.pop();
 					int lowerBoundIndex = expressions.get(0).indexOf("LowerBound");
 					int listSize = expressions.size();
 					expressions.get(listSize-1).set(lowerBoundIndex, lowerBound);
 					expressions.get(listSize-1).set(lowerBoundIndex+1, "NO_BOUND");
 					
-					if (expressionStackSize > 1) {
+					while(!expressionStack.isEmpty()) {
 						String exprSymbol = expressionStack.pop();
 						String exprCoefficient = "1.0";
+						if ("-".equals(exprSymbol.substring(0, 1))) {
+							exprCoefficient ="-1.0";
+							exprSymbol = exprSymbol.substring(1);
+						}
 						updateCoefficient(exprSymbol, exprCoefficient);
 					}
 				} else if ("<".equals(item)) {
-					int expressionStackSize = expressionStack.size();
-					
 					String upperBound = expressionStack.pop();
 					int lowerBoundIndex = expressions.get(0).indexOf("LowerBound");
 					int listSize = expressions.size();
 					expressions.get(listSize-1).set(lowerBoundIndex, "NO_BOUND");
 					expressions.get(listSize-1).set(lowerBoundIndex+1, upperBound);
 					
-					if (expressionStackSize > 1) {
+					while(!expressionStack.isEmpty()) {
 						String exprSymbol = expressionStack.pop();
 						String exprCoefficient = "1.0";
+						if ("-".equals(exprSymbol.substring(0, 1))) {
+							exprCoefficient ="-1.0";
+							exprSymbol = exprSymbol.substring(1);
+						}
 						updateCoefficient(exprSymbol, exprCoefficient);
 					}
 				} else if ("=".equals(item)) {
-					int expressionStackSize = expressionStack.size();
-					
 					String bound = expressionStack.pop();
 					int lowerBoundIndex = expressions.get(0).indexOf("LowerBound");
 					int listSize = expressions.size();
 					expressions.get(listSize-1).set(lowerBoundIndex, bound);
 					expressions.get(listSize-1).set(lowerBoundIndex+1, bound);
 					
-					if (expressionStackSize > 1) {
+					while(!expressionStack.isEmpty()) {
 						String exprSymbol = expressionStack.pop();
 						String exprCoefficient = "1.0";
+						if ("-".equals(exprSymbol.substring(0, 1))) {
+							exprCoefficient ="-1.0";
+							exprSymbol = exprSymbol.substring(1);
+						}
 						updateCoefficient(exprSymbol, exprCoefficient);
 					}
 				} else if (m.find()) {
