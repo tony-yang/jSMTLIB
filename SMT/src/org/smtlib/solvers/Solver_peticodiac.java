@@ -475,7 +475,6 @@ public class Solver_peticodiac extends Solver_test implements ISolver {
 				if ("*".equals(item)) {
 					String exprSymbol = expressionStack.pop();
 					String exprCoefficient = expressionStack.pop();
-					//updateCoefficient(exprSymbol, exprCoefficient);
 					String finalSymbol = exprSymbol + "*" + exprCoefficient;
 					expressionStack.push(finalSymbol);
 				} else if ("/".equals(item)) {
@@ -484,7 +483,6 @@ public class Solver_peticodiac extends Solver_test implements ISolver {
 					Double fraction = exprNumerator/exprDenominator;
 					expressionStack.push(fraction.toString());
 				} else if ("-".equals(item)) {
-					// TODO: Need to handle double negate in the future for completeness
 					String exprSymbol = expressionStack.pop();
 					String negatedSymbol = "-" + exprSymbol;
 					if ("-".equals(exprSymbol.substring(0, 1))) {
@@ -492,7 +490,7 @@ public class Solver_peticodiac extends Solver_test implements ISolver {
 					}
 					expressionStack.push(negatedSymbol);
 				} else if ("+".equals(item)) {
-					// Drop the item as everything is normalized to standard form with "+" as the operator
+					// Do nothing as everything is normalized to standard form with "+" as the operator
 				} else if (">".equals(item)) {
 					String lowerBound = expressionStack.pop();
 					updateBound(lowerBound, "NO_BOUND");
