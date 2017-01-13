@@ -424,6 +424,24 @@ public class Solver_peticodiac extends Solver_test implements ISolver {
 			return expressionQueue.toString();
 		}
 		
+		private void convertExpression(Stack<String> expressionStack) {
+			while(!expressionStack.isEmpty()) {
+				String exprOperand = expressionStack.pop();
+				String[] operandArray = exprOperand.split("\\*");
+				String exprSymbol = operandArray[0];
+				String exprCoefficient = (operandArray.length > 1) ? operandArray[1] : "1.0";
+				if ("-".equals(exprSymbol.substring(0, 1))) {
+					if ("-".equals(exprCoefficient.substring(0, 1))) {
+						exprCoefficient = exprCoefficient.substring(1);
+					} else {
+						exprCoefficient = "-" + exprCoefficient;
+					}
+					exprSymbol = exprSymbol.substring(1);
+				}
+				updateCoefficient(exprSymbol, exprCoefficient);
+			}
+		}
+		
 		private void updateCoefficient(String exprSymbol, String exprCoefficient) {
 			System.out.println("=== DEBUG: symbol = " + exprSymbol + " coeff = " + exprCoefficient);
 			int index = expressions.get(0).indexOf(exprSymbol);
@@ -431,6 +449,13 @@ public class Solver_peticodiac extends Solver_test implements ISolver {
 			Double existingCoeff = Double.valueOf(expressions.get(listSize-1).get(index));
 			Double newCoeff = existingCoeff + Double.valueOf(exprCoefficient);
 			expressions.get(listSize-1).set(index, newCoeff.toString());
+		}
+		
+		private void updateBound(String lowerBound, String upperBound) {
+			int lowerBoundIndex = expressions.get(0).indexOf("LowerBound");
+			int listSize = expressions.size();
+			expressions.get(listSize-1).set(lowerBoundIndex, lowerBound);
+			expressions.get(listSize-1).set(lowerBoundIndex+1, upperBound);
 		}
 		
 		public List<ArrayList<String>> getPeticodiacFormat() {
@@ -450,7 +475,9 @@ public class Solver_peticodiac extends Solver_test implements ISolver {
 				if ("*".equals(item)) {
 					String exprSymbol = expressionStack.pop();
 					String exprCoefficient = expressionStack.pop();
-					updateCoefficient(exprSymbol, exprCoefficient);
+					//updateCoefficient(exprSymbol, exprCoefficient);
+					String finalSymbol = exprSymbol + "*" + exprCoefficient;
+					expressionStack.push(finalSymbol);
 				} else if ("/".equals(item)) {
 					Double exprDenominator = Double.valueOf(expressionStack.pop());
 					Double exprNumerator = Double.valueOf(expressionStack.pop());
@@ -458,78 +485,26 @@ public class Solver_peticodiac extends Solver_test implements ISolver {
 					expressionStack.push(fraction.toString());
 				} else if ("-".equals(item)) {
 					// TODO: Need to handle double negate in the future for completeness
-					int expressionStackSize = expressionStack.size();
-					
-					if (expressionStackSize > 1) {
-						// Converting all but the first element from " - symbol" to "+ (-symbol)" 
-						for (int i = expressionStackSize - 1; i > 0; i--) {
-							String exprCoefficient = expressionStack.get(i);
-							String negateCoefficient = "-" + exprCoefficient;
-							expressionStack.set(i, negateCoefficient);
-						}
-					} else {
-						String exprCoefficient = expressionStack.pop();
-						String negateCoefficient = "-" + exprCoefficient;
-						expressionStack.push(negateCoefficient);
+					String exprSymbol = expressionStack.pop();
+					String negatedSymbol = "-" + exprSymbol;
+					if ("-".equals(exprSymbol.substring(0, 1))) {
+						negatedSymbol = exprSymbol.substring(1);
 					}
+					expressionStack.push(negatedSymbol);
 				} else if ("+".equals(item)) {
-					while (!expressionStack.isEmpty()) {
-						String exprSymbol = expressionStack.pop();
-						String exprCoefficient = "1.0";
-						if ("-".equals(exprSymbol.substring(0, 1))) {
-							exprCoefficient ="-1.0";
-							exprSymbol = exprSymbol.substring(1);
-						}
-						updateCoefficient(exprSymbol, exprCoefficient);
-					}
+					// Drop the item as everything is normalized to standard form with "+" as the operator
 				} else if (">".equals(item)) {
 					String lowerBound = expressionStack.pop();
-					int lowerBoundIndex = expressions.get(0).indexOf("LowerBound");
-					int listSize = expressions.size();
-					expressions.get(listSize-1).set(lowerBoundIndex, lowerBound);
-					expressions.get(listSize-1).set(lowerBoundIndex+1, "NO_BOUND");
-					
-					while(!expressionStack.isEmpty()) {
-						String exprSymbol = expressionStack.pop();
-						String exprCoefficient = "1.0";
-						if ("-".equals(exprSymbol.substring(0, 1))) {
-							exprCoefficient ="-1.0";
-							exprSymbol = exprSymbol.substring(1);
-						}
-						updateCoefficient(exprSymbol, exprCoefficient);
-					}
+					updateBound(lowerBound, "NO_BOUND");
+					convertExpression(expressionStack);
 				} else if ("<".equals(item)) {
 					String upperBound = expressionStack.pop();
-					int lowerBoundIndex = expressions.get(0).indexOf("LowerBound");
-					int listSize = expressions.size();
-					expressions.get(listSize-1).set(lowerBoundIndex, "NO_BOUND");
-					expressions.get(listSize-1).set(lowerBoundIndex+1, upperBound);
-					
-					while(!expressionStack.isEmpty()) {
-						String exprSymbol = expressionStack.pop();
-						String exprCoefficient = "1.0";
-						if ("-".equals(exprSymbol.substring(0, 1))) {
-							exprCoefficient ="-1.0";
-							exprSymbol = exprSymbol.substring(1);
-						}
-						updateCoefficient(exprSymbol, exprCoefficient);
-					}
+					updateBound("NO_BOUND", upperBound);
+					convertExpression(expressionStack);
 				} else if ("=".equals(item)) {
 					String bound = expressionStack.pop();
-					int lowerBoundIndex = expressions.get(0).indexOf("LowerBound");
-					int listSize = expressions.size();
-					expressions.get(listSize-1).set(lowerBoundIndex, bound);
-					expressions.get(listSize-1).set(lowerBoundIndex+1, bound);
-					
-					while(!expressionStack.isEmpty()) {
-						String exprSymbol = expressionStack.pop();
-						String exprCoefficient = "1.0";
-						if ("-".equals(exprSymbol.substring(0, 1))) {
-							exprCoefficient ="-1.0";
-							exprSymbol = exprSymbol.substring(1);
-						}
-						updateCoefficient(exprSymbol, exprCoefficient);
-					}
+					updateBound(bound, bound);
+					convertExpression(expressionStack);
 				} else if (m.find()) {
 					int index = expressions.get(0).indexOf(item);
 					int listSize = expressions.size();
