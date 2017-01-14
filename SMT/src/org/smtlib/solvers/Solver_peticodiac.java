@@ -151,8 +151,10 @@ public class Solver_peticodiac extends Solver_test implements ISolver {
 		}
 		
 		try {
-			// Output the first line "p cnf NUM_VARS NUM_CONSTRS" to indicate the number of contraints and bounds
-			this.numConstrs = simplifiedExpression.size() - 1;
+			// Output the first line "p cnf NUM_VARS NUM_CONSTRS" to indicate the number of constraints and bounds
+			// We always subtract 2 here. We leave the first row out for the header and the last row out
+			// since the last row is always empty, created for the next potential expression during Translation
+			this.numConstrs = simplifiedExpression.size() - 2;
 			this.outputWriter.write("p cnf " + this.numVars + " " + this.numConstrs);
 			this.outputWriter.newLine();
 			
@@ -280,8 +282,6 @@ public class Solver_peticodiac extends Solver_test implements ISolver {
 		IResponse status = super.set_logic(logicName, pos);
 		if (status.isError()) {return status;}
 		
-		//TODO: Output the logic used in the comment section of our input format
-		//System.out.println("Peticodiac set_logic with name = [" + logicName + "] position = <" + pos.toString() + "> with success");
 		try {
 			this.outputWriter.write("# set_logic: " + logicName);
 			this.outputWriter.newLine();
@@ -320,7 +320,6 @@ public class Solver_peticodiac extends Solver_test implements ISolver {
 		IResponse status = super.set_info(key,  value);
 		if (status.isError()) {return status;}
 		
-		//TODO: Output the info in the comment section of our input format
 		System.out.println("Peticodiac set_info with key = [" + key.toString() + "] and value = <" + value.toString() + "> with success");
 		try {
 			this.outputWriter.write("# " + key.toString() + ": " + value.toString());
@@ -495,14 +494,19 @@ public class Solver_peticodiac extends Solver_test implements ISolver {
 					String lowerBound = expressionStack.pop();
 					updateBound(lowerBound, "NO_BOUND");
 					convertExpression(expressionStack);
+					expressions.add(new ArrayList<String>(Collections.nCopies(expressionVariables.size() + 2, "na")));
 				} else if ("<".equals(item)) {
 					String upperBound = expressionStack.pop();
 					updateBound("NO_BOUND", upperBound);
 					convertExpression(expressionStack);
+					expressions.add(new ArrayList<String>(Collections.nCopies(expressionVariables.size() + 2, "na")));
 				} else if ("=".equals(item)) {
 					String bound = expressionStack.pop();
 					updateBound(bound, bound);
 					convertExpression(expressionStack);
+					expressions.add(new ArrayList<String>(Collections.nCopies(expressionVariables.size() + 2, "na")));
+				} else if ("and".equals(item.toLowerCase())) {
+					// Do nothing as everything is normalized to standard conjugate form
 				} else if (m.find()) {
 					int index = expressions.get(0).indexOf(item);
 					int listSize = expressions.size();
@@ -539,17 +543,19 @@ public class Solver_peticodiac extends Solver_test implements ISolver {
 			System.out.println("Visiting FcnExpr = " + e.toString());
 			
 			if (e.toString().startsWith("(") &&
-					("*".equals(e.toString().substring(1, 2)) ||
-					 "/".equals(e.toString().substring(1, 2)) ||
-					 "+".equals(e.toString().substring(1, 2)) ||
-					 "-".equals(e.toString().substring(1, 2)) ||
-					 "=".equals(e.toString().substring(1, 2)) ||
-					 "<".equals(e.toString().substring(1, 2)) ||  // Treating < and <= the same
-					 ">".equals(e.toString().substring(1, 2)) ||  // Treating > and >= the same
-					 "<=".equals(e.toString().substring(1, 2)) ||  // TODO: Should <= behaves the same as <
-					 ">=".equals(e.toString().substring(1, 2)) ||  // TODO: Should >= behaves the same as >
-					 "%".equals(e.toString().substring(1, 2)) )) {
+					("*".equals(e.toString().substring(1, 2))  ||
+					 "/".equals(e.toString().substring(1, 2))  ||
+					 "+".equals(e.toString().substring(1, 2))  ||
+					 "-".equals(e.toString().substring(1, 2))  ||
+					 "=".equals(e.toString().substring(1, 2))  ||
+					 "<".equals(e.toString().substring(1, 2))  ||  // Treating < and <= the same
+					 ">".equals(e.toString().substring(1, 2))  ||  // Treating > and >= the same
+					 "<=".equals(e.toString().substring(1, 2)) ||  // TODO: Should <= behaves the same as < ?
+					 ">=".equals(e.toString().substring(1, 2)) ||  // TODO: Should >= behaves the same as > ?
+					 "%".equals(e.toString().substring(1, 2))  )) {
 				expressionQueue.add(e.toString().substring(1, 2));
+			} else if (e.toString().startsWith("(") && "and ".equals(e.toString().substring(1,  5).toLowerCase())) {
+				expressionQueue.add(e.toString().substring(1, 4));
 			} else {
 				expressionQueue.add(e.toString());
 			}
