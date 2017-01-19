@@ -24,9 +24,11 @@ import org.smtlib.ICommand.Idefine_sort;
 import org.smtlib.*;
 import org.smtlib.IExpr.IAttribute;
 import org.smtlib.IExpr.IAttributeValue;
+import org.smtlib.IExpr.IBinding;
 import org.smtlib.IExpr.IFcnExpr;
 import org.smtlib.IExpr.IIdentifier;
 import org.smtlib.IExpr.IKeyword;
+import org.smtlib.IExpr.ILet;
 import org.smtlib.IExpr.INumeral;
 import org.smtlib.IExpr.IParameterizedIdentifier;
 import org.smtlib.IExpr.IQualifiedIdentifier;
@@ -413,12 +415,14 @@ public class Solver_peticodiac extends Solver_test implements ISolver {
 	public class Translator extends IVisitor.NullVisitor<String> {
 		private Deque<String> expressionQueue;
 		private List<ArrayList<String>> expressions;
+		private HashMap<String, Deque<String>> letSymbolHash;
 		public Translator(SortedSet<String> expressionVariables) {
 			System.out.println("In Translator creating visitor");
 			expressionQueue = new ArrayDeque<String>();
 			expressions = new ArrayList<ArrayList<String>>();
 			expressions.add(new ArrayList<String>(expressionVariables)); // For first row symbol list
 			expressions.add(new ArrayList<String>(Collections.nCopies(expressionVariables.size() + 2, "na"))); // For second row first expression
+			letSymbolHash = new HashMap<String, Deque<String>>();
 		}
 		
 		public String getExpressionQueue() {
@@ -567,8 +571,34 @@ public class Solver_peticodiac extends Solver_test implements ISolver {
 		@Override
 		public String visit(ISymbol e) throws IVisitor.VisitorException {
 			System.out.println("Symbol is " + e.value());
-			expressionQueue.add(e.value());
+			if (letSymbolHash.containsKey(e.value())) {
+				Deque<String> substituteValue = letSymbolHash.get(e.value());
+				while (!substituteValue.isEmpty()) {
+					expressionQueue.add(substituteValue.poll());
+				}
+			} else {
+				expressionQueue.add(e.value());
+			}
 			return e.value();
+		}
+		
+		@Override
+		public String visit(ILet e) throws IVisitor.VisitorException {
+			System.out.println("Let expr is " + e.bindings().toString());
+			StringBuffer sb = new StringBuffer();
+			
+			for (IBinding d: e.bindings()) {
+				System.out.println("==>>> binding d = " + d.toString());
+				String variableKey = d.parameter().toString();
+				d.expr().accept(this);
+				Deque<String> variableValueQueue = new ArrayDeque<String>(expressionQueue);
+				expressionQueue.clear();
+				System.out.println("    bind key = " + variableKey + " value = " + variableValueQueue.toString());
+				letSymbolHash.put(variableKey, variableValueQueue);
+			}
+			String result = e.expr().accept(this).toString();
+			System.out.println("=== >>> Return from the let " + result);
+			return result;
 		}
 	}
 }

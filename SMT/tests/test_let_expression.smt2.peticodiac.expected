@@ -1,0 +1,11 @@
+# set_logic: QF_LIA
+# :source: | SMT-COMP'06 organizers |
+# :smt-lib-version: 2.0
+# :category: "check"
+# :status: unsat
+# :notes: |This benchmark is designed to check if the DP supports bignumbers.|
+p cnf 2 2
+c 1.0 1.0
+b 2 0 NO_BOUND
+c 0.0 3.0
+b 3 0 0
