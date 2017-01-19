@@ -163,15 +163,17 @@ public class Solver_peticodiac extends Solver_test implements ISolver {
 			// c <list of coefficient for tableau delimited by one space>
 			// b slack_var_index lower_bound upper_bound
 			String output = "";
+			int boundIndex = 0;
 			for (int i = 1; i <= numConstrs; i++) {
 				output += "c";
 				for (int j = 0; j < this.numVars; j++) {
 					String value = simplifiedExpression.get(i).get(j).equals("na") ? "0.0" : simplifiedExpression.get(i).get(j);
 					output += " " + value;
 				}
-				output += "\nb " + (i+1)
+				output += "\nb " + (this.numVars + boundIndex)
 						+ " "    + simplifiedExpression.get(i).get(this.numVars)
 						+ " "	 + simplifiedExpression.get(i).get(this.numVars+1) + "\n";
+				boundIndex += 1;
 			}
 			this.outputWriter.write(output);
 			
