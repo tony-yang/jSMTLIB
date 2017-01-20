@@ -6,8 +6,8 @@
 # :notes: |This benchmark is designed to check if the DP supports bignumbers.|
 p cnf 3 3
 c 1.0 0.0 0.0
-b 3 6 NO_BOUND
+b 3 >:6 NO_BOUND
 c 0.0 1.0 0.0
-b 4 20 NO_BOUND
+b 4 >:20 NO_BOUND
 c 0.0 0.0 1.0
-b 5 99 NO_BOUND
+b 5 >:99 NO_BOUND

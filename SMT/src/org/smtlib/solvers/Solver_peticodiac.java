@@ -496,18 +496,28 @@ public class Solver_peticodiac extends Solver_test implements ISolver {
 					expressionStack.push(negatedSymbol);
 				} else if ("+".equals(item)) {
 					// Do nothing as everything is normalized to standard form with "+" as the operator
+				} else if (">=".equals(item)) {
+					String lowerBound = ">=:" + expressionStack.pop();
+					updateBound(lowerBound, "NO_BOUND");
+					convertExpression(expressionStack);
+					expressions.add(new ArrayList<String>(Collections.nCopies(expressionVariables.size() + 2, "na")));
+				} else if ("<=".equals(item)) {
+					String upperBound = "<=:" + expressionStack.pop();
+					updateBound("NO_BOUND", upperBound);
+					convertExpression(expressionStack);
+					expressions.add(new ArrayList<String>(Collections.nCopies(expressionVariables.size() + 2, "na")));
 				} else if (">".equals(item)) {
-					String lowerBound = expressionStack.pop();
+					String lowerBound = ">:" + expressionStack.pop();
 					updateBound(lowerBound, "NO_BOUND");
 					convertExpression(expressionStack);
 					expressions.add(new ArrayList<String>(Collections.nCopies(expressionVariables.size() + 2, "na")));
 				} else if ("<".equals(item)) {
-					String upperBound = expressionStack.pop();
+					String upperBound = "<:" + expressionStack.pop();
 					updateBound("NO_BOUND", upperBound);
 					convertExpression(expressionStack);
 					expressions.add(new ArrayList<String>(Collections.nCopies(expressionVariables.size() + 2, "na")));
 				} else if ("=".equals(item)) {
-					String bound = expressionStack.pop();
+					String bound = "=:" + expressionStack.pop();
 					updateBound(bound, bound);
 					convertExpression(expressionStack);
 					expressions.add(new ArrayList<String>(Collections.nCopies(expressionVariables.size() + 2, "na")));
@@ -549,15 +559,17 @@ public class Solver_peticodiac extends Solver_test implements ISolver {
 			System.out.println("Visiting FcnExpr = " + e.toString());
 			
 			if (e.toString().startsWith("(") &&
+					("<=".equals(e.toString().substring(1, 3))  ||
+					 ">=".equals(e.toString().substring(1, 3))  )) {
+				expressionQueue.add(e.toString().substring(1, 3));
+			} else if (e.toString().startsWith("(") &&
 					("*".equals(e.toString().substring(1, 2))  ||
 					 "/".equals(e.toString().substring(1, 2))  ||
 					 "+".equals(e.toString().substring(1, 2))  ||
 					 "-".equals(e.toString().substring(1, 2))  ||
 					 "=".equals(e.toString().substring(1, 2))  ||
-					 "<".equals(e.toString().substring(1, 2))  ||  // Treating < and <= the same
-					 ">".equals(e.toString().substring(1, 2))  ||  // Treating > and >= the same
-					 "<=".equals(e.toString().substring(1, 2)) ||  // TODO: Should <= behaves the same as < ?
-					 ">=".equals(e.toString().substring(1, 2)) ||  // TODO: Should >= behaves the same as > ?
+					 "<".equals(e.toString().substring(1, 2))  ||
+					 ">".equals(e.toString().substring(1, 2))  ||
 					 "%".equals(e.toString().substring(1, 2))  )) {
 				expressionQueue.add(e.toString().substring(1, 2));
 			} else if (e.toString().startsWith("(") && "and ".equals(e.toString().substring(1,  5).toLowerCase())) {
