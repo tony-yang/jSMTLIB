@@ -834,7 +834,7 @@ public class SMT {
 		System.out.println("       --exec   [-e] <path>");
 		System.out.println("       --logics [-L] <path>");
 		System.out.println("       --out         <filename or 'stdout' or 'stderr'>");
-		System.out.println("       --peticodiacout <filename>");
+		System.out.println("       --peticodiacout <output directory>");
 		System.out.println("       --diag        <filename or 'stdout' or 'stderr'>");
 		System.out.println("       --port        <int>");
 		System.out.println("       --text        <string>");
