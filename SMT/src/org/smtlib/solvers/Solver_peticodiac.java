@@ -405,17 +405,27 @@ public class Solver_peticodiac extends Solver_test implements ISolver {
 	
 	public /*@Nullable*/ List<ArrayList<String>> translate(IExpr expr, SortedSet<String> expressionVariables) throws IVisitor.VisitorException {
 		Translator exprTranslator = new Translator(expressionVariables);
-		String returnedExpr = expr.accept(exprTranslator);
+		System.out.println("Calling translate with expr => " + expr.toString());
+		IExpr returnedExpr = expr.accept(exprTranslator);
 		System.out.println("returnedExpr = " + returnedExpr);
 		System.out.println("==== translator queue = " + exprTranslator.getExpressionQueue());
-		System.out.println("==== expressions = " + exprTranslator.getPeticodiacFormat().toString());
-		return exprTranslator.getPeticodiacFormat();
+		
+		List<ArrayList<String>> peticodiacExpression2 = exprTranslator.getPeticodiacFormat2();
+		System.out.println("==== expressions2 = " + peticodiacExpression2.toString());
+		
+		List<ArrayList<String>> peticodiacExpression = exprTranslator.getPeticodiacFormat();
+		System.out.println("==== expressions = " + peticodiacExpression.toString());
+		return peticodiacExpression;
 	}
 	
-	public class Translator extends IVisitor.NullVisitor<String> {
-		private Deque<String> expressionQueue;
+	public class Translator extends IVisitor.NullVisitor<IExpr> {
+		private Deque<String> expressionQueue;;
 		private List<ArrayList<String>> expressions;
 		private HashMap<String, Deque<String>> letSymbolHash;
+		
+		private Deque<Deque> expressionQueues;
+		private List<ArrayList<String>> expressions2;
+		private HashMap<String, Deque<String>> letSymbolHash2;
 		public Translator(SortedSet<String> expressionVariables) {
 			System.out.println("In Translator creating visitor");
 			expressionQueue = new ArrayDeque<String>();
@@ -423,6 +433,12 @@ public class Solver_peticodiac extends Solver_test implements ISolver {
 			expressions.add(new ArrayList<String>(expressionVariables)); // For first row symbol list
 			expressions.add(new ArrayList<String>(Collections.nCopies(expressionVariables.size() + 2, "na"))); // For second row first expression
 			letSymbolHash = new HashMap<String, Deque<String>>();
+			
+			expressionQueues = new ArrayDeque<Deque>();
+			expressions2 = new ArrayList<ArrayList<String>>();
+			expressions2.add(new ArrayList<String>(expressionVariables)); // For first row symbol list
+			expressions2.add(new ArrayList<String>(Collections.nCopies(expressionVariables.size() + 2, "na"))); // For second row first expression
+			letSymbolHash2 = new HashMap<String, Deque<String>>();
 		}
 		
 		public String getExpressionQueue() {
@@ -461,6 +477,108 @@ public class Solver_peticodiac extends Solver_test implements ISolver {
 			int listSize = expressions.size();
 			expressions.get(listSize-1).set(lowerBoundIndex, lowerBound);
 			expressions.get(listSize-1).set(lowerBoundIndex+1, upperBound);
+		}
+		
+		public List<ArrayList<String>> getPeticodiacFormat2() {
+			expressions2.get(0).add("LowerBound");
+			expressions2.get(0).add("UpperBound");
+			Stack<String> expressionStack2 = new Stack<String>();
+			while (!expressionQueues.isEmpty()) {
+				System.out.println(">> The expression Stack >> " + expressionStack2.toString());
+				Deque<IExpr> subexpression = expressionQueues.poll();
+				System.out.println("       ==  subexpression = " + subexpression.toString());
+				
+				int subexpressionLength = subexpression.size();
+				String operatorExpr = subexpression.getLast().toString();
+				String operator = "";
+				
+				if (operatorExpr.startsWith("(") &&
+						("<=".equals(operatorExpr.substring(1, 3))  ||
+						 ">=".equals(operatorExpr.substring(1, 3))  )) {
+					operator = operatorExpr.substring(1, 3);
+				} else if (operatorExpr.startsWith("(") &&
+						("<".equals(operatorExpr.substring(1, 2))  ||
+						 ">".equals(operatorExpr.substring(1, 2))  )) {
+					operator = operatorExpr.substring(1, 2);
+				} else if (operatorExpr.startsWith("(") &&
+						("*".equals(operatorExpr.substring(1, 2))  ||
+						 "/".equals(operatorExpr.substring(1, 2))  ||
+						 "+".equals(operatorExpr.substring(1, 2))  ||
+						 "-".equals(operatorExpr.substring(1, 2))  ||
+						 "=".equals(operatorExpr.substring(1, 2))  ||
+						 "%".equals(operatorExpr.substring(1, 2))  )) {
+					operator = operatorExpr.substring(1, 2);
+				}
+				
+				// Parse the variable to handle the edge case when a symbol has no coefficient
+				// Set all variable coefficients to 1 to begin with
+				String symbolPattern = "[a-zA-Z_\\-\\~\\!\\$\\^\\&\\*\\+\\=\\.\\?\\/\\<\\>@%][0-9a-zA-Z_\\-\\~\\!\\$\\^\\&\\*\\+\\=\\.\\?\\/\\<\\>@%]*";
+				Pattern r = Pattern.compile(symbolPattern);
+				//Matcher m = r.matcher(subexpression);
+				
+				
+				if ("*".equals(operator)) {
+					String exprSymbol = expressionStack2.pop();
+					String exprCoefficient = expressionStack2.pop();
+					String finalSymbol = exprSymbol + "*" + exprCoefficient;
+					expressionStack2.push(finalSymbol);
+				} else if ("/".equals(subexpression)) {
+					Double exprDenominator = Double.valueOf(expressionStack2.pop());
+					Double exprNumerator = Double.valueOf(expressionStack2.pop());
+					Double fraction = exprNumerator/exprDenominator;
+					expressionStack2.push(fraction.toString());
+				} else if ("-".equals(subexpression)) {
+					String exprSymbol = expressionStack2.pop();
+					String negatedSymbol = "-" + exprSymbol;
+					if ("-".equals(exprSymbol.substring(0, 1))) {
+						negatedSymbol = exprSymbol.substring(1);
+					}
+					expressionStack2.push(negatedSymbol);
+				} else if ("+".equals(subexpression)) {
+					// Do nothing as everything is normalized to standard form with "+" as the operator
+				} else if (">=".equals(subexpression)) {
+					String lowerBound = ">=:" + expressionStack2.pop();
+					updateBound(lowerBound, "NO_BOUND");
+					convertExpression(expressionStack2);
+					expressions2.add(new ArrayList<String>(Collections.nCopies(expressionVariables.size() + 2, "na")));
+				} else if ("<=".equals(subexpression)) {
+					String upperBound = "<=:" + expressionStack2.pop();
+					updateBound("NO_BOUND", upperBound);
+					convertExpression(expressionStack2);
+					expressions2.add(new ArrayList<String>(Collections.nCopies(expressionVariables.size() + 2, "na")));
+				} else if (">".equals(subexpression)) {
+					String lowerBound = ">:" + expressionStack2.pop();
+					updateBound(lowerBound, "NO_BOUND");
+					convertExpression(expressionStack2);
+					expressions2.add(new ArrayList<String>(Collections.nCopies(expressionVariables.size() + 2, "na")));
+				} else if ("<".equals(subexpression)) {
+					String upperBound = "<:" + expressionStack2.pop();
+					updateBound("NO_BOUND", upperBound);
+					convertExpression(expressionStack2);
+					expressions2.add(new ArrayList<String>(Collections.nCopies(expressionVariables.size() + 2, "na")));
+				} else if ("=".equals(subexpression)) {
+					String bound = "=:" + expressionStack2.pop();
+					updateBound(bound, bound);
+					convertExpression(expressionStack2);
+					expressions2.add(new ArrayList<String>(Collections.nCopies(expressionVariables.size() + 2, "na")));
+				} else if ("and".equals(subexpression.toString().toLowerCase())) {
+					// Do nothing as everything is normalized to standard conjugate form
+				} else if (false) {
+					int index = expressions2.get(0).indexOf(subexpression);
+					int listSize = expressions2.size();
+					if ("na".equals(expressions2.get(listSize-1).get(index).toLowerCase())) {
+						expressions2.get(listSize-1).set(index, "0.0");
+					}
+					expressionStack2.push(subexpression.toString());
+				} else {
+					expressionStack2.push(subexpression.toString());
+				}
+				
+				System.out.println(">>>>> After push the expression Stack >> " + expressionStack2.toString());
+			}
+			System.out.println("=== expressionStack 2 = " + expressionStack2);
+			
+			return expressions2;
 		}
 		
 		public List<ArrayList<String>> getPeticodiacFormat() {
@@ -534,54 +652,80 @@ public class Solver_peticodiac extends Solver_test implements ISolver {
 					expressionStack.push(item);
 				}
 			}
+			
 			return expressions;
 		}
 		
 		@Override
-		public String visit(INumeral e) throws IVisitor.VisitorException {
+		public INumeral visit(INumeral e) throws IVisitor.VisitorException {
 			System.out.println("Visiting numeral = " + e.toString());
 			expressionQueue.add(e.toString());
-			return e.value().toString();
+			//return e.value().toString();
+			return e;
 		}
 		
 		@Override
-		public String visit(IFcnExpr e) throws IVisitor.VisitorException {
-			//System.out.println("Visiting FcnExpr = " + e.toString());
+		public IExpr visit(IFcnExpr e) throws IVisitor.VisitorException {
+			System.out.println("    Visiting FcnExpr = " + e.toString());
+			Deque<IExpr> fcnQueue = new ArrayDeque<IExpr>();
 			Iterator<IExpr> iter = e.args().iterator();
 			if (!iter.hasNext()) {
 				throw new VisitorException("Peticodiac did not expect an empty argument list", e.pos());
 			}
 			
 			while (iter.hasNext()) {
-				System.out.println("== Iteration has next: ");
-				String fcnname = iter.next().accept(this);
+				System.out.println("== Iteration has next and iter = " + iter.toString());
+				IExpr expr = iter.next();
+				System.out.println("    = The next expr = " + expr.toString());
+				IExpr fcnname = expr.accept(this);
+				System.out.println("    ===> return from accept fcnname = " + fcnname);
+				fcnQueue.add(fcnname);
 			}
-			System.out.println("Visiting FcnExpr = " + e.toString());
+			System.out.println("	Visiting FcnExpr from return after accept = " + e.toString());
 			
 			if (e.toString().startsWith("(") &&
 					("<=".equals(e.toString().substring(1, 3))  ||
 					 ">=".equals(e.toString().substring(1, 3))  )) {
 				expressionQueue.add(e.toString().substring(1, 3));
+				if ("numeral".equals(fcnQueue.peek().kind())) {
+					IExpr firstElement = fcnQueue.poll();
+					fcnQueue.add(firstElement);
+				}
+				fcnQueue.add(e);
+			} else if (e.toString().startsWith("(") &&
+					("<".equals(e.toString().substring(1, 2))  ||
+					 ">".equals(e.toString().substring(1, 2))  )) {
+				expressionQueue.add(e.toString().substring(1, 2));
+				if ("numeral".equals(fcnQueue.peek().kind())) {
+					IExpr firstElement = fcnQueue.poll();
+					fcnQueue.add(firstElement);
+				}
+				fcnQueue.add(e);
 			} else if (e.toString().startsWith("(") &&
 					("*".equals(e.toString().substring(1, 2))  ||
 					 "/".equals(e.toString().substring(1, 2))  ||
 					 "+".equals(e.toString().substring(1, 2))  ||
 					 "-".equals(e.toString().substring(1, 2))  ||
 					 "=".equals(e.toString().substring(1, 2))  ||
-					 "<".equals(e.toString().substring(1, 2))  ||
-					 ">".equals(e.toString().substring(1, 2))  ||
 					 "%".equals(e.toString().substring(1, 2))  )) {
 				expressionQueue.add(e.toString().substring(1, 2));
+				fcnQueue.add(e);
 			} else if (e.toString().startsWith("(") && "and ".equals(e.toString().substring(1,  5).toLowerCase())) {
 				expressionQueue.add(e.toString().substring(1, 4));
+				fcnQueue.add(e);
 			} else {
 				expressionQueue.add(e.toString());
+				fcnQueue.add(e);
 			}
-			return e.toString();
+			
+			expressionQueues.addLast(fcnQueue);
+			System.out.println("### The expressionQueues = " + expressionQueues);
+			System.out.println("### The fcnQueue = " + fcnQueue);
+			return e;
 		}
 		
 		@Override
-		public String visit(ISymbol e) throws IVisitor.VisitorException {
+		public ISymbol visit(ISymbol e) throws IVisitor.VisitorException {
 			System.out.println("Symbol is " + e.value());
 			if (letSymbolHash.containsKey(e.value())) {
 				Deque<String> substituteValue = letSymbolHash.get(e.value());
@@ -591,11 +735,11 @@ public class Solver_peticodiac extends Solver_test implements ISolver {
 			} else {
 				expressionQueue.add(e.value());
 			}
-			return e.value();
+			return e;
 		}
 		
 		@Override
-		public String visit(ILet e) throws IVisitor.VisitorException {
+		public IExpr visit(ILet e) throws IVisitor.VisitorException {
 			System.out.println("Let expr is " + e.bindings().toString());
 			StringBuffer sb = new StringBuffer();
 			
@@ -608,7 +752,7 @@ public class Solver_peticodiac extends Solver_test implements ISolver {
 				System.out.println("    bind key = " + variableKey + " value = " + variableValueQueue.toString());
 				letSymbolHash.put(variableKey, variableValueQueue);
 			}
-			String result = e.expr().accept(this).toString();
+			IExpr result = e.expr().accept(this);
 			System.out.println("=== >>> Return from the let " + result);
 			return result;
 		}
