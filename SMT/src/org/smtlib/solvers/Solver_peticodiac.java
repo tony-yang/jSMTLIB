@@ -405,31 +405,33 @@ public class Solver_peticodiac extends Solver_test implements ISolver {
 	
 	public /*@Nullable*/ List<ArrayList<String>> translate(IExpr expr, SortedSet<String> expressionVariables) throws IVisitor.VisitorException {
 		Translator exprTranslator = new Translator(expressionVariables);
-		String returnedExpr = expr.accept(exprTranslator);
+		Deque<Object> returnedExpr = expr.accept(exprTranslator);
 		System.out.println("returnedExpr = " + returnedExpr);
-		System.out.println("==== translator queue = " + exprTranslator.getExpressionQueue());
-		System.out.println("==== expressions = " + exprTranslator.getPeticodiacFormat().toString());
-		return exprTranslator.getPeticodiacFormat();
+		System.out.println("==== translator queue 2 = " + exprTranslator.getExpressionQueue2());
+		List<ArrayList<String>> translatedExpression2 = exprTranslator.getPeticodiacFormat2();
+		System.out.println("==== expressions 2 = " + translatedExpression2.toString());
+		return translatedExpression2;
 	}
 	
-	public class Translator extends IVisitor.NullVisitor<String> {
-		private Deque<String> expressionQueue;
-		private List<ArrayList<String>> expressions;
-		private HashMap<String, Deque<String>> letSymbolHash;
+	public class Translator extends IVisitor.NullVisitor<Deque<Object>> {
+		private HashMap<String, Deque<Object>> letSymbolHash;
+		private Deque<Object> expressionQueue2;
+		private List<ArrayList<String>> expressions2;
+		
 		public Translator(SortedSet<String> expressionVariables) {
 			System.out.println("In Translator creating visitor");
-			expressionQueue = new ArrayDeque<String>();
-			expressions = new ArrayList<ArrayList<String>>();
-			expressions.add(new ArrayList<String>(expressionVariables)); // For first row symbol list
-			expressions.add(new ArrayList<String>(Collections.nCopies(expressionVariables.size() + 2, "na"))); // For second row first expression
-			letSymbolHash = new HashMap<String, Deque<String>>();
+			letSymbolHash = new HashMap<String, Deque<Object>>();
+			expressionQueue2 = new ArrayDeque<Object>();
+			expressions2 = new ArrayList<ArrayList<String>>();
+			expressions2.add(new ArrayList<String>(expressionVariables)); // For first row symbol list
+			expressions2.add(new ArrayList<String>(Collections.nCopies(expressionVariables.size() + 2, "na"))); // For second row first expression
 		}
 		
-		public String getExpressionQueue() {
-			return expressionQueue.toString();
+		public String getExpressionQueue2() {
+			return expressionQueue2.toString();
 		}
 		
-		private void convertExpression(Stack<String> expressionStack) {
+		private void convertExpression2(Stack<String> expressionStack) {
 			while(!expressionStack.isEmpty()) {
 				String exprOperand = expressionStack.pop();
 				String[] operandArray = exprOperand.split("\\*");
@@ -443,172 +445,222 @@ public class Solver_peticodiac extends Solver_test implements ISolver {
 					}
 					exprSymbol = exprSymbol.substring(1);
 				}
-				updateCoefficient(exprSymbol, exprCoefficient);
+				updateCoefficient2(exprSymbol, exprCoefficient);
 			}
 		}
 		
-		private void updateCoefficient(String exprSymbol, String exprCoefficient) {
+		private void updateCoefficient2(String exprSymbol, String exprCoefficient) {
 			System.out.println("=== DEBUG: symbol = " + exprSymbol + " coeff = " + exprCoefficient);
-			int index = expressions.get(0).indexOf(exprSymbol);
-			int listSize = expressions.size();
-			Double existingCoeff = Double.valueOf(expressions.get(listSize-1).get(index));
+			int index = expressions2.get(0).indexOf(exprSymbol);
+			int listSize = expressions2.size();
+			Double existingCoeff = Double.valueOf(expressions2.get(listSize-1).get(index));
 			Double newCoeff = existingCoeff + Double.valueOf(exprCoefficient);
-			expressions.get(listSize-1).set(index, newCoeff.toString());
+			expressions2.get(listSize-1).set(index, newCoeff.toString());
 		}
 		
-		private void updateBound(String lowerBound, String upperBound) {
-			int lowerBoundIndex = expressions.get(0).indexOf("LowerBound");
-			int listSize = expressions.size();
-			expressions.get(listSize-1).set(lowerBoundIndex, lowerBound);
-			expressions.get(listSize-1).set(lowerBoundIndex+1, upperBound);
+		private void updateBound2(String lowerBound, String upperBound) {
+			int lowerBoundIndex = expressions2.get(0).indexOf("LowerBound");
+			int listSize = expressions2.size();
+			expressions2.get(listSize-1).set(lowerBoundIndex, lowerBound);
+			expressions2.get(listSize-1).set(lowerBoundIndex+1, upperBound);
 		}
 		
-		public List<ArrayList<String>> getPeticodiacFormat() {
-			expressions.get(0).add("LowerBound");
-			expressions.get(0).add("UpperBound");
+		public List<ArrayList<String>> getPeticodiacFormat2() {
+			expressions2.get(0).add("LowerBound");
+			expressions2.get(0).add("UpperBound");
 			Stack<String> expressionStack = new Stack<String>();
-			while (!expressionQueue.isEmpty()) {
-				System.out.println(">> The expression Stack >> " + expressionStack.toString());
-				String item = expressionQueue.poll();
+			
+			while(!expressionQueue2.isEmpty()) {
+				Deque<Object> translateExpressionQueue = (ArrayDeque<Object>)expressionQueue2.poll();
+				System.out.println(translateExpressionQueue.toString());
 				
-				// Parse the variable to handle the edge case when a symbol has no coefficient
-				// Set all variable coefficients to 1 to begin with
-				String symbolPattern = "[a-zA-Z_\\-\\~\\!\\$\\^\\&\\*\\+\\=\\.\\?\\/\\<\\>@%][0-9a-zA-Z_\\-\\~\\!\\$\\^\\&\\*\\+\\=\\.\\?\\/\\<\\>@%]*";
-				Pattern r = Pattern.compile(symbolPattern);
-				Matcher m = r.matcher(item);
-				
-				if ("*".equals(item)) {
-					String exprSymbol = expressionStack.pop();
-					String exprCoefficient = expressionStack.pop();
-					String finalSymbol = exprSymbol + "*" + exprCoefficient;
-					expressionStack.push(finalSymbol);
-				} else if ("/".equals(item)) {
-					Double exprDenominator = Double.valueOf(expressionStack.pop());
-					Double exprNumerator = Double.valueOf(expressionStack.pop());
-					Double fraction = exprNumerator/exprDenominator;
-					expressionStack.push(fraction.toString());
-				} else if ("-".equals(item)) {
-					String exprSymbol = expressionStack.pop();
-					String negatedSymbol = "-" + exprSymbol;
-					if ("-".equals(exprSymbol.substring(0, 1))) {
-						negatedSymbol = exprSymbol.substring(1);
+				while (!translateExpressionQueue.isEmpty()) {
+					System.out.println(">> The expression Stack >> " + expressionStack.toString());
+					Object subExpression = translateExpressionQueue.poll();
+					String subExpressionClass = subExpression.getClass().getName();
+					System.out.println(subExpressionClass);
+					System.out.println(subExpression.toString());
+					
+					if ("java.util.arraydeque".equals(subExpressionClass.toLowerCase())) {
+						Deque<String> simplifySubExpression = (ArrayDeque<String>)subExpression;
+						System.out.println("SubExpression = array deque with items = " + simplifySubExpression);
+						while (!simplifySubExpression.isEmpty()) {
+							System.out.println(">> >> In simplify sub expression Stack >> " + expressionStack.toString());
+							String item = simplifySubExpression.poll();
+							// Parse the variable to handle the edge case when a symbol has no coefficient
+							// Set all variable coefficients to 1 to begin with
+							String symbolPattern = "[a-zA-Z_\\-\\~\\!\\$\\^\\&\\*\\+\\=\\.\\?\\/\\<\\>@%][0-9a-zA-Z_\\-\\~\\!\\$\\^\\&\\*\\+\\=\\.\\?\\/\\<\\>@%]*";
+							Pattern r = Pattern.compile(symbolPattern);
+							Matcher m = r.matcher(item);
+							
+							if ("*".equals(item)) {
+								String exprSymbol = expressionStack.pop();
+								String exprCoefficient = expressionStack.pop();
+								String finalSymbol = exprSymbol + "*" + exprCoefficient;
+								expressionStack.push(finalSymbol);
+							} else if ("/".equals(item)) {
+								Double exprDenominator = Double.valueOf(expressionStack.pop());
+								Double exprNumerator = Double.valueOf(expressionStack.pop());
+								Double fraction = exprNumerator/exprDenominator;
+								expressionStack.push(fraction.toString());
+							} else if ("-".equals(item)) {
+								String exprSymbol = expressionStack.pop();
+								String negatedSymbol = "-" + exprSymbol;
+								if ("-".equals(exprSymbol.substring(0, 1))) {
+									negatedSymbol = exprSymbol.substring(1);
+								}
+								expressionStack.push(negatedSymbol);
+							} else if ("+".equals(item)) {
+								// Do nothing as everything is normalized to standard form with "+" as the operator
+							} else if (m.find()) {
+								int index = expressions2.get(0).indexOf(item);
+								int listSize = expressions2.size();
+								if ("na".equals(expressions2.get(listSize-1).get(index).toLowerCase())) {
+									expressions2.get(listSize-1).set(index, "0.0");
+								}
+								expressionStack.push(item);
+							} else {
+								expressionStack.push(item);
+							}
+						} // End the while loop for SimplifySubExpression
+					} else if ("java.lang.string".equals(subExpressionClass.toLowerCase())) {
+						String item = (String)subExpression;
+						System.out.println("SubExpression = string with items = " + item);
+						System.out.println(">> >> In simplify sub expression Stack >> " + expressionStack.toString());
+						
+						if (">=".equals(item)) {
+							String lowerBound = ">=:" + expressionStack.pop();
+							updateBound2(lowerBound, "NO_BOUND");
+							convertExpression2(expressionStack);
+							expressions2.add(new ArrayList<String>(Collections.nCopies(expressionVariables.size() + 2, "na")));
+						} else if ("<=".equals(item)) {
+							String upperBound = "<=:" + expressionStack.pop();
+							updateBound2("NO_BOUND", upperBound);
+							convertExpression2(expressionStack);
+							expressions2.add(new ArrayList<String>(Collections.nCopies(expressionVariables.size() + 2, "na")));
+						} else if (">".equals(item)) {
+							String lowerBound = ">:" + expressionStack.pop();
+							updateBound2(lowerBound, "NO_BOUND");
+							convertExpression2(expressionStack);
+							expressions2.add(new ArrayList<String>(Collections.nCopies(expressionVariables.size() + 2, "na")));
+						} else if ("<".equals(item)) {
+							String upperBound = "<:" + expressionStack.pop();
+							updateBound2("NO_BOUND", upperBound);
+							convertExpression2(expressionStack);
+							expressions2.add(new ArrayList<String>(Collections.nCopies(expressionVariables.size() + 2, "na")));
+						} else if ("=".equals(item)) {
+							String bound = "=:" + expressionStack.pop();
+							updateBound2(bound, bound);
+							convertExpression2(expressionStack);
+							expressions2.add(new ArrayList<String>(Collections.nCopies(expressionVariables.size() + 2, "na")));
+						} else if ("and".equals(item.toLowerCase())) {
+							// Do nothing as everything is normalized to standard conjugate form
+						}
 					}
-					expressionStack.push(negatedSymbol);
-				} else if ("+".equals(item)) {
-					// Do nothing as everything is normalized to standard form with "+" as the operator
-				} else if (">=".equals(item)) {
-					String lowerBound = ">=:" + expressionStack.pop();
-					updateBound(lowerBound, "NO_BOUND");
-					convertExpression(expressionStack);
-					expressions.add(new ArrayList<String>(Collections.nCopies(expressionVariables.size() + 2, "na")));
-				} else if ("<=".equals(item)) {
-					String upperBound = "<=:" + expressionStack.pop();
-					updateBound("NO_BOUND", upperBound);
-					convertExpression(expressionStack);
-					expressions.add(new ArrayList<String>(Collections.nCopies(expressionVariables.size() + 2, "na")));
-				} else if (">".equals(item)) {
-					String lowerBound = ">:" + expressionStack.pop();
-					updateBound(lowerBound, "NO_BOUND");
-					convertExpression(expressionStack);
-					expressions.add(new ArrayList<String>(Collections.nCopies(expressionVariables.size() + 2, "na")));
-				} else if ("<".equals(item)) {
-					String upperBound = "<:" + expressionStack.pop();
-					updateBound("NO_BOUND", upperBound);
-					convertExpression(expressionStack);
-					expressions.add(new ArrayList<String>(Collections.nCopies(expressionVariables.size() + 2, "na")));
-				} else if ("=".equals(item)) {
-					String bound = "=:" + expressionStack.pop();
-					updateBound(bound, bound);
-					convertExpression(expressionStack);
-					expressions.add(new ArrayList<String>(Collections.nCopies(expressionVariables.size() + 2, "na")));
-				} else if ("and".equals(item.toLowerCase())) {
-					// Do nothing as everything is normalized to standard conjugate form
-				} else if (m.find()) {
-					int index = expressions.get(0).indexOf(item);
-					int listSize = expressions.size();
-					if ("na".equals(expressions.get(listSize-1).get(index).toLowerCase())) {
-						expressions.get(listSize-1).set(index, "0.0");
-					}
-					expressionStack.push(item);
-				} else {
-					expressionStack.push(item);
 				}
 			}
-			return expressions;
+			return expressions2;
 		}
 		
 		@Override
-		public String visit(INumeral e) throws IVisitor.VisitorException {
+		public Deque<Object> visit(INumeral e) throws IVisitor.VisitorException {
 			System.out.println("Visiting numeral = " + e.toString());
-			expressionQueue.add(e.toString());
-			return e.value().toString();
+			Deque<Object> result = new ArrayDeque<Object>();
+			result.add(e.value().toString());
+			return result;
+		}
+		
+		private Deque<Object> flattenDeque(Deque<Object> expressionQueue) {
+			Deque<Object> result = new ArrayDeque<Object>();
+			String operator = (String)expressionQueue.removeLast();
+			
+			while (!expressionQueue.isEmpty()) {
+				result.addAll((Deque<Object>)expressionQueue.poll());
+			}
+			result.add(operator);
+			return result;
 		}
 		
 		@Override
-		public String visit(IFcnExpr e) throws IVisitor.VisitorException {
+		public Deque<Object> visit(IFcnExpr e) throws IVisitor.VisitorException {
 			//System.out.println("Visiting FcnExpr = " + e.toString());
 			Iterator<IExpr> iter = e.args().iterator();
 			if (!iter.hasNext()) {
 				throw new VisitorException("Peticodiac did not expect an empty argument list", e.pos());
 			}
 			
+			Deque<Object> result = new ArrayDeque<Object>();
 			while (iter.hasNext()) {
 				System.out.println("== Iteration has next: ");
-				String fcnname = iter.next().accept(this);
+				Deque<Object> fcnname = iter.next().accept(this);
+				result.add(fcnname);
 			}
 			System.out.println("Visiting FcnExpr = " + e.toString());
 			
 			if (e.toString().startsWith("(") &&
 					("<=".equals(e.toString().substring(1, 3))  ||
 					 ">=".equals(e.toString().substring(1, 3))  )) {
-				expressionQueue.add(e.toString().substring(1, 3));
+				result.add(e.toString().substring(1, 3));
+				this.expressionQueue2.add(result);
+				System.out.println("========= expressionQueue2 = " + this.expressionQueue2);
+			} else if (e.toString().startsWith("(") &&
+					("<".equals(e.toString().substring(1, 2))  ||
+					 ">".equals(e.toString().substring(1, 2))  ||
+					 "=".equals(e.toString().substring(1, 2))  )) {
+				result.add(e.toString().substring(1, 2));
+				this.expressionQueue2.add(result);
+				System.out.println("========= expressionQueue2 = " + this.expressionQueue2);
 			} else if (e.toString().startsWith("(") &&
 					("*".equals(e.toString().substring(1, 2))  ||
 					 "/".equals(e.toString().substring(1, 2))  ||
 					 "+".equals(e.toString().substring(1, 2))  ||
 					 "-".equals(e.toString().substring(1, 2))  ||
-					 "=".equals(e.toString().substring(1, 2))  ||
-					 "<".equals(e.toString().substring(1, 2))  ||
-					 ">".equals(e.toString().substring(1, 2))  ||
 					 "%".equals(e.toString().substring(1, 2))  )) {
-				expressionQueue.add(e.toString().substring(1, 2));
+				result.add(e.toString().substring(1, 2));
+				result = flattenDeque(result);
 			} else if (e.toString().startsWith("(") && "and ".equals(e.toString().substring(1,  5).toLowerCase())) {
-				expressionQueue.add(e.toString().substring(1, 4));
+				result.add(e.toString().substring(1, 4));
+				result = flattenDeque(result);
 			} else {
-				expressionQueue.add(e.toString());
+				result.add(e.toString());
 			}
-			return e.toString();
+			
+			return result;
 		}
 		
 		@Override
-		public String visit(ISymbol e) throws IVisitor.VisitorException {
+		public Deque<Object> visit(ISymbol e) throws IVisitor.VisitorException {
 			System.out.println("Symbol is " + e.value());
+			Deque<Object> result = new ArrayDeque<Object>();
 			if (letSymbolHash.containsKey(e.value())) {
-				Deque<String> substituteValue = letSymbolHash.get(e.value());
+				Deque<Object> substituteValue = letSymbolHash.get(e.value());
 				while (!substituteValue.isEmpty()) {
-					expressionQueue.add(substituteValue.poll());
+					Object value = (Object)substituteValue.poll();
+					result.add(value);
 				}
 			} else {
-				expressionQueue.add(e.value());
+				result.add(e.value());
 			}
-			return e.value();
+			
+			return result;
 		}
 		
 		@Override
-		public String visit(ILet e) throws IVisitor.VisitorException {
+		public Deque<Object> visit(ILet e) throws IVisitor.VisitorException {
 			System.out.println("Let expr is " + e.bindings().toString());
-			StringBuffer sb = new StringBuffer();
 			
 			for (IBinding d: e.bindings()) {
+				Deque<Object> let_result;
 				System.out.println("==>>> binding d = " + d.toString());
 				String variableKey = d.parameter().toString();
-				d.expr().accept(this);
-				Deque<String> variableValueQueue = new ArrayDeque<String>(expressionQueue);
-				expressionQueue.clear();
+				let_result = d.expr().accept(this);
+				System.out.println(" >>>>>>> Let binding let_result = " + let_result);
+				Deque<Object> variableValueQueue = new ArrayDeque<Object>(let_result);
 				System.out.println("    bind key = " + variableKey + " value = " + variableValueQueue.toString());
 				letSymbolHash.put(variableKey, variableValueQueue);
 			}
-			String result = e.expr().accept(this).toString();
+			Deque<Object> result = new ArrayDeque<Object>();
+			result.add(e.expr().accept(this).toString());
 			System.out.println("=== >>> Return from the let " + result);
 			return result;
 		}
