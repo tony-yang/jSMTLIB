@@ -569,9 +569,10 @@ public class Solver_peticodiac extends Solver_test implements ISolver {
 			// Calculate a numeric value on the right.
 			// If the right hand side is negative, reverse the sign for all variables and number
 			// If the expression is inequality, also reverse the inequality sign
+			String numberRegex = "-?\\d+\\.?\\d*";
+			
 			while (!combinedLHS.isEmpty()) {
 				String item = combinedLHS.pop();
-				String numberRegex = "\\d+";
 				if (item.matches(numberRegex)) {
 					float LHSNumber = Float.valueOf(item);
 					RHSValue -= LHSNumber;
@@ -582,7 +583,6 @@ public class Solver_peticodiac extends Solver_test implements ISolver {
 			
 			while (!combinedRHS.isEmpty()) {
 				String item = combinedRHS.pop();
-				String numberRegex = "\\d+";
 				if (item.matches(numberRegex)) {
 					float RHSNumber = Float.valueOf(item);
 					RHSValue += RHSNumber;
