@@ -464,6 +464,166 @@ public class Solver_peticodiac extends Solver_test implements ISolver {
 			expressions2.get(listSize-1).set(lowerBoundIndex, lowerBound);
 			expressions2.get(listSize-1).set(lowerBoundIndex+1, upperBound);
 		}
+		private Deque<String> simplifyOperandInExpression(Deque<String> expression) {
+			Deque<String> combinedExpression = new ArrayDeque<String>();
+			System.out.println("================== Simplify operand in expression ===================");
+			while (!expression.isEmpty()) {
+				System.out.println(">> >> In operand sub expression new queue >> " + combinedExpression.toString());
+				String item = expression.poll();
+				// Parse the variable to handle the edge case when a symbol has no coefficient
+				// Set all variable coefficients to 1 to begin with
+				String symbolPattern = "[a-zA-Z_\\-\\~\\!\\$\\^\\&\\*\\+\\=\\.\\?\\/\\<\\>@%][0-9a-zA-Z_\\-\\~\\!\\$\\^\\&\\*\\+\\=\\.\\?\\/\\<\\>@%]*";
+				Pattern r = Pattern.compile(symbolPattern);
+				Matcher m = r.matcher(item);
+				
+				if ("*".equals(item)) {
+					String exprSymbol = combinedExpression.pop();
+					String exprCoefficient = combinedExpression.pop();
+					String finalSymbol = exprSymbol + "*" + exprCoefficient;
+					combinedExpression.push(finalSymbol);
+				} else if ("/".equals(item)) {
+					Double exprDenominator = Double.valueOf(combinedExpression.pop());
+					Double exprNumerator = Double.valueOf(combinedExpression.pop());
+					Double fraction = exprNumerator/exprDenominator;
+					combinedExpression.push(fraction.toString());
+				} else if ("-".equals(item)) {
+					String exprSymbol = combinedExpression.pop();
+					String negatedSymbol = "-" + exprSymbol;
+					if ("-".equals(exprSymbol.substring(0, 1))) {
+						negatedSymbol = exprSymbol.substring(1);
+					}
+					combinedExpression.push(negatedSymbol);
+				} else if ("+".equals(item)) {
+					// Do nothing as everything is normalized to standard form with "+" as the operator
+				} else if (m.find()) {
+					int index = expressions2.get(0).indexOf(item);
+					int listSize = expressions2.size();
+					if ("na".equals(expressions2.get(listSize-1).get(index).toLowerCase())) {
+						expressions2.get(listSize-1).set(index, "0.0");
+					}
+					combinedExpression.push(item);
+				} else {
+					combinedExpression.push(item);
+				}
+			} // End the while loop for SimplifySubExpression
+			return combinedExpression;
+		}
+		
+		private Deque<String> negateOperandInExpression(Deque<String> expression) {
+			Deque<String> negatedExpression = new ArrayDeque<String>();
+			System.out.println("================== Negate operator in expression ===================");
+			while (!expression.isEmpty()) {
+				System.out.println(">> >> In negate sub expression new queue >> " + negatedExpression.toString());
+				String item = expression.poll();
+				
+				String negatedItem = "-" + item;
+				if ("-".equals(item.substring(0, 1))) {
+					negatedItem = item.substring(1);
+				}
+				negatedExpression.add(negatedItem);
+			}
+			return negatedExpression;
+		}
+		
+		private String negateOperatorInExpression(String operator) {
+			String negatedOperator = "";
+			if ("<".equals(operator)) {
+				negatedOperator = ">";
+			} else if (">".equals(operator)) {
+				negatedOperator = "<";
+			} else if ("<=".equals(operator)) {
+				negatedOperator = ">=";
+			} else if (">=".equals(operator)) {
+				negatedOperator = "<=";
+			} else if ("=".equals(operator)) {
+				negatedOperator = "=";
+			}
+			return negatedOperator;
+		}
+		
+		private void simplifyExpression(Deque<Object> translateExpressionQueue) {
+			Deque<String> LHS = (ArrayDeque<String>)translateExpressionQueue.poll();
+			Deque<String> RHS = (ArrayDeque<String>)translateExpressionQueue.poll();
+			String operator = (String)translateExpressionQueue.poll();
+			System.out.println("<<<<<<< LHS = " + LHS);
+			System.out.println("<<<<<<< RHS = " + RHS);
+			System.out.println("<<<<<<< operator = " + operator);
+			
+			Deque<String> combinedLHS = new ArrayDeque<String>();
+			Deque<String> combinedRHS = new ArrayDeque<String>();
+			Float RHSValue = new Float(0.0);
+			System.out.println("================== Processing LHS ===================");
+			combinedLHS = simplifyOperandInExpression(LHS);
+			
+			System.out.println("<<<<<<< LHS = " + LHS);
+			System.out.println("<<<<<<< RHS = " + RHS);
+			System.out.println("<<<<<<< combinedLHS = " + combinedLHS);
+			System.out.println("<<<<<<< combinedRHS = " + combinedRHS);
+			System.out.println("<<<<<<< RHS value = " + RHSValue);
+			System.out.println("<<<<<<< operator = " + operator);
+			
+			System.out.println("================== Processing RHS ===================");
+			combinedRHS = simplifyOperandInExpression(RHS);
+			
+			// Now processing the combined operator. Moving all variables to the left
+			// Calculate a numeric value on the right.
+			// If the right hand side is negative, reverse the sign for all variables and number
+			// If the expression is inequality, also reverse the inequality sign
+			while (!combinedLHS.isEmpty()) {
+				String item = combinedLHS.pop();
+				String numberRegex = "\\d+";
+				if (item.matches(numberRegex)) {
+					float LHSNumber = Float.valueOf(item);
+					RHSValue -= LHSNumber;
+				} else {
+					LHS.add(item);
+				}
+			}
+			
+			while (!combinedRHS.isEmpty()) {
+				String item = combinedRHS.pop();
+				String numberRegex = "\\d+";
+				if (item.matches(numberRegex)) {
+					float RHSNumber = Float.valueOf(item);
+					RHSValue += RHSNumber;
+				} else {
+					String negatedItem;
+					if ("-".equals(item.substring(0, 1))) {
+						negatedItem = item.substring(1);
+					} else {
+						negatedItem = "-" + item;
+					}
+					LHS.add(negatedItem);
+				}
+			}
+			
+			RHS.add(RHSValue.toString());
+			
+			System.out.println("<<<<<<< LHS = " + LHS);
+			System.out.println("<<<<<<< RHS = " + RHS);
+			System.out.println("<<<<<<< combinedLHS = " + combinedLHS);
+			System.out.println("<<<<<<< combinedRHS = " + combinedRHS);
+			System.out.println("<<<<<<< RHS value = " + RHSValue);
+			System.out.println("<<<<<<< operator = " + operator);
+			
+			if (RHSValue < 0) {
+				LHS = negateOperandInExpression(LHS);
+				RHS = negateOperandInExpression(RHS);
+				operator = negateOperatorInExpression(operator);
+			}
+			
+			System.out.println("Final output for simplification");
+			System.out.println("<<<<<<< LHS = " + LHS);
+			System.out.println("<<<<<<< RHS = " + RHS);
+			System.out.println("<<<<<<< combinedLHS = " + combinedLHS);
+			System.out.println("<<<<<<< combinedRHS = " + combinedRHS);
+			System.out.println("<<<<<<< RHS value = " + RHSValue);
+			System.out.println("<<<<<<< operator = " + operator);
+			
+			translateExpressionQueue.add(LHS);
+			translateExpressionQueue.add(RHS);
+			translateExpressionQueue.add(operator);
+		}
 		
 		public List<ArrayList<String>> getPeticodiacFormat2() {
 			expressions2.get(0).add("LowerBound");
@@ -472,9 +632,12 @@ public class Solver_peticodiac extends Solver_test implements ISolver {
 			
 			while(!expressionQueue2.isEmpty()) {
 				Deque<Object> translateExpressionQueue = (ArrayDeque<Object>)expressionQueue2.poll();
-				System.out.println(translateExpressionQueue.toString());
+				System.out.println("###### in getPeticodiacFormat2 translateExpressionQueue = " + translateExpressionQueue.toString());
+				simplifyExpression(translateExpressionQueue);
+				System.out.println("###### in getPeticodiacFormat2 after simplify translateExpressionQueue = " + translateExpressionQueue.toString());
 				
 				while (!translateExpressionQueue.isEmpty()) {
+					
 					System.out.println(">> The expression Stack >> " + expressionStack.toString());
 					Object subExpression = translateExpressionQueue.poll();
 					String subExpressionClass = subExpression.getClass().getName();
@@ -487,41 +650,7 @@ public class Solver_peticodiac extends Solver_test implements ISolver {
 						while (!simplifySubExpression.isEmpty()) {
 							System.out.println(">> >> In simplify sub expression Stack >> " + expressionStack.toString());
 							String item = simplifySubExpression.poll();
-							// Parse the variable to handle the edge case when a symbol has no coefficient
-							// Set all variable coefficients to 1 to begin with
-							String symbolPattern = "[a-zA-Z_\\-\\~\\!\\$\\^\\&\\*\\+\\=\\.\\?\\/\\<\\>@%][0-9a-zA-Z_\\-\\~\\!\\$\\^\\&\\*\\+\\=\\.\\?\\/\\<\\>@%]*";
-							Pattern r = Pattern.compile(symbolPattern);
-							Matcher m = r.matcher(item);
-							
-							if ("*".equals(item)) {
-								String exprSymbol = expressionStack.pop();
-								String exprCoefficient = expressionStack.pop();
-								String finalSymbol = exprSymbol + "*" + exprCoefficient;
-								expressionStack.push(finalSymbol);
-							} else if ("/".equals(item)) {
-								Double exprDenominator = Double.valueOf(expressionStack.pop());
-								Double exprNumerator = Double.valueOf(expressionStack.pop());
-								Double fraction = exprNumerator/exprDenominator;
-								expressionStack.push(fraction.toString());
-							} else if ("-".equals(item)) {
-								String exprSymbol = expressionStack.pop();
-								String negatedSymbol = "-" + exprSymbol;
-								if ("-".equals(exprSymbol.substring(0, 1))) {
-									negatedSymbol = exprSymbol.substring(1);
-								}
-								expressionStack.push(negatedSymbol);
-							} else if ("+".equals(item)) {
-								// Do nothing as everything is normalized to standard form with "+" as the operator
-							} else if (m.find()) {
-								int index = expressions2.get(0).indexOf(item);
-								int listSize = expressions2.size();
-								if ("na".equals(expressions2.get(listSize-1).get(index).toLowerCase())) {
-									expressions2.get(listSize-1).set(index, "0.0");
-								}
-								expressionStack.push(item);
-							} else {
-								expressionStack.push(item);
-							}
+							expressionStack.push(item);
 						} // End the while loop for SimplifySubExpression
 					} else if ("java.lang.string".equals(subExpressionClass.toLowerCase())) {
 						String item = (String)subExpression;
