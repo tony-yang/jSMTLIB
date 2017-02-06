@@ -475,10 +475,20 @@ public class Solver_peticodiac extends Solver_test implements ISolver {
 				String symbolPattern = "[a-zA-Z_\\-\\~\\!\\$\\^\\&\\*\\+\\=\\.\\?\\/\\<\\>@%][0-9a-zA-Z_\\-\\~\\!\\$\\^\\&\\*\\+\\=\\.\\?\\/\\<\\>@%]*";
 				Pattern r = Pattern.compile(symbolPattern);
 				Matcher m = r.matcher(item);
+				String numberRegex = "-?\\d+\\.?\\d*";
 				
 				if ("*".equals(item)) {
-					String exprSymbol = combinedExpression.pop();
-					String exprCoefficient = combinedExpression.pop();
+					String operand1 = combinedExpression.pop();
+					String operand2 = combinedExpression.pop();
+					String exprSymbol;
+					String exprCoefficient;
+					if (operand1.matches(numberRegex)) {
+						exprSymbol = operand2;
+						exprCoefficient = operand1;
+					} else {
+						exprSymbol = operand1;
+						exprCoefficient = operand2;
+					}
 					String finalSymbol = exprSymbol + "*" + exprCoefficient;
 					combinedExpression.push(finalSymbol);
 				} else if ("/".equals(item)) {
