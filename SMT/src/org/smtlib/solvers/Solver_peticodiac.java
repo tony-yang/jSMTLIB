@@ -326,8 +326,10 @@ public class Solver_peticodiac extends Solver_test implements ISolver {
 		
 		System.out.println("Peticodiac set_info with key = [" + key.toString() + "] and value = <" + value.toString() + "> with success");
 		try {
-			this.outputWriter.write("# " + key.toString() + ": " + value.toString());
-			this.outputWriter.newLine();
+			if (!":source".equals(key.toString().toLowerCase())) {
+				this.outputWriter.write("# " + key.toString() + ": " + value.toString());
+				this.outputWriter.newLine();
+			}
 		} catch (IOException e) {
 			// ignore
 		}
