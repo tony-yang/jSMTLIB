@@ -579,7 +579,7 @@ public class Solver_peticodiac extends Solver_test implements ISolver {
 			// Calculate a numeric value on the right.
 			// If the right hand side is negative, reverse the sign for all variables and number
 			// If the expression is inequality, also reverse the inequality sign
-			String numberRegex = "-?\\d+\\.?\\d*";
+			String numberRegex = "-?\\d+\\.?\\d*[eE]?-?\\d*";
 			
 			while (!combinedLHS.isEmpty()) {
 				String item = combinedLHS.pop();
