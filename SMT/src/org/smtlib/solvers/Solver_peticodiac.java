@@ -774,7 +774,8 @@ public class Solver_peticodiac extends Solver_test implements ISolver {
 			System.out.println("Symbol is " + e.value());
 			Deque<Object> result = new ArrayDeque<Object>();
 			if (letSymbolHash.containsKey(e.value())) {
-				Deque<Object> substituteValue = letSymbolHash.get(e.value());
+				System.out.println("==== Yes this is a let variable and substitution = " + letSymbolHash.get(e.value()));
+				Deque<Object> substituteValue = new ArrayDeque<Object>(letSymbolHash.get(e.value()));
 				while (!substituteValue.isEmpty()) {
 					Object value = (Object)substituteValue.poll();
 					result.add(value);
