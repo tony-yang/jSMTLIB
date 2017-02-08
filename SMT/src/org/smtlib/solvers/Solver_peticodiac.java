@@ -178,6 +178,8 @@ public class Solver_peticodiac extends Solver_test implements ISolver {
 				boundIndex += 1;
 			}
 			this.outputWriter.write(output);
+			this.outputWriter.write("eoa");
+			this.outputWriter.newLine();
 			
 		} catch (IOException e) {
 			// ignore

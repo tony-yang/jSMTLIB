@@ -8,3 +8,4 @@ c 2.0 1.0
 b 2 >=:6.0 NO_BOUND
 c 2.0 1.0
 b 3 NO_BOUND <=:6.0
+eoa

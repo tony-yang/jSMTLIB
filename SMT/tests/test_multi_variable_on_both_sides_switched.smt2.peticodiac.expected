@@ -6,3 +6,4 @@
 p cnf 3 1
 c -1.0 3.0 -5.0
 b 3 >:6.0 NO_BOUND
+eoa

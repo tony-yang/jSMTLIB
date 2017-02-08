@@ -4,6 +4,10 @@
 # :status: sat
 # :notes: |This benchmark is designed to check if the DP supports bignumbers.|
 p cnf 1 1
-c -3.0
+c 1.0
 b 1 >=:6.0 NO_BOUND
+eoa
+p cnf 2 1
+c 0.0 1.0
+b 2 NO_BOUND <=:6.0
 eoa
