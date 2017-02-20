@@ -45,7 +45,7 @@ import org.smtlib.solvers.Solver_yices.Translator;
 /** This class is a Solver implementation that simply type-checks formulae and checks that
  * commands are used correctly; it does not do any proving.
  */
-public class Solver_peticodiac extends Solver_test implements ISolver {
+public class Solver_peticodiac_analyzer extends Solver_test implements ISolver {
 		
 	/** Track the number of variables and bounds to be used in the tableau */
 	protected int numVars;
@@ -53,10 +53,11 @@ public class Solver_peticodiac extends Solver_test implements ISolver {
 	protected SortedSet<String> expressionVariables;
 	
 	/** The intermediate output file path using our input format */
-	protected File outputFile;
 	protected StringWriter stringOutput;
-	protected BufferedWriter outputWriter;
 	
+	protected File analyzerFile;
+	protected BufferedWriter analyzerWriter;
+	protected Set<String> orExpressionHasIdenticalVariable = new HashSet<String>();
 	
 	
 	/** Constructor for an instance of this test solver class; the second argument is ignored - it is 
@@ -65,7 +66,7 @@ public class Solver_peticodiac extends Solver_test implements ISolver {
 	 * @param smtConfig a reference to the configuration instance in use
 	 * @param exec the executable for the solver, ignored for the case of this test solver
 	 */
-	public Solver_peticodiac(SMT.Configuration smtConfig, String exec) {
+	public Solver_peticodiac_analyzer(SMT.Configuration smtConfig, String exec) {
 		super(smtConfig, "");
 		numVars = 0;
 		numConstrs = 0;
@@ -76,22 +77,19 @@ public class Solver_peticodiac extends Solver_test implements ISolver {
 			System.out.println("smtConfig.files not empty with file = " + inputFilename);
 			
 			if (this.smtConfig.peticodiacout == null) {
-				outputFile = new File("/tmp/" + inputFilename + ".peticodiac");
+				analyzerFile = new File("/tmp/" + "orExpression.peticodiac.analyzer");
 			} else {
-				outputFile = new File(this.smtConfig.peticodiacout.toString().toLowerCase() + "/" + inputFilename + ".peticodiac");
+				analyzerFile = new File(this.smtConfig.peticodiacout.toString().toLowerCase() + "/" + "orExpression.peticodiac.analyzer");
 			}
 			
-			if (outputFile.exists()) {
-				outputFile.delete();
-			}
 			try {
-				outputWriter = new BufferedWriter(new FileWriter(outputFile));
+				analyzerWriter = new BufferedWriter(new FileWriter(analyzerFile, true));
 			} catch (IOException e) {
 				// ignore Error
 			}
 		} else {
 			System.out.println("smtConfig.files empty");
-			outputWriter = new BufferedWriter(new StringWriter());
+			analyzerWriter = new BufferedWriter(new StringWriter());
 		}
 	}
 	
@@ -117,7 +115,12 @@ public class Solver_peticodiac extends Solver_test implements ISolver {
 		
 		System.out.println("Peticodiac exit success");
 		try {
-			this.outputWriter.close();
+			System.out.println("About to exit and or Expression contains = " + orExpressionHasIdenticalVariable);
+			for (String fileName: this.orExpressionHasIdenticalVariable) {
+				this.analyzerWriter.write(fileName);
+				this.analyzerWriter.newLine();
+			}
+			this.analyzerWriter.close();
 			System.out.println("Peticodiac outputWriter closed");
 		} catch (IOException e) {
 			// ignore
@@ -141,7 +144,7 @@ public class Solver_peticodiac extends Solver_test implements ISolver {
 		if (status.isError()) {return status;}
 		
 		//TODO: Write simplified output to file and determine the NUM_CONSTRS
-		System.out.println("Peticodiac Assert Expression with expr = " + expr.toString());
+		//System.out.println("Peticodiac Assert Expression with expr = " + expr.toString());
 		// Simplify the expression
 		
 		List<ArrayList<String>> simplifiedExpression;
@@ -151,39 +154,6 @@ public class Solver_peticodiac extends Solver_test implements ISolver {
 		} catch (IVisitor.VisitorException e) {
 			System.out.println("Error: Peticodiac assert failed: " + e.getMessage());
 			return smtConfig.responseFactory.error("Peticodiac assert command failed: " + e.getMessage());
-		}
-		
-		try {
-			// Output the first line "p cnf NUM_VARS NUM_CONSTRS" to indicate the number of constraints and bounds
-			// We always subtract 2 here. We leave the first row out for the header and the last row out
-			// since the last row is always empty, created for the next potential expression during Translation
-			this.numConstrs = simplifiedExpression.size() - 2;
-			this.outputWriter.write("p cnf " + this.numVars + " " + this.numConstrs);
-			this.outputWriter.newLine();
-			
-			// Output the simplified expression in terms of tableau coefficient and bounds
-			// Format is
-			// c <list of coefficient for tableau delimited by one space>
-			// b slack_var_index lower_bound upper_bound
-			String output = "";
-			int boundIndex = 0;
-			for (int i = 1; i <= numConstrs; i++) {
-				output += "c";
-				for (int j = 0; j < this.numVars; j++) {
-					String value = simplifiedExpression.get(i).get(j).equals("na") ? "0.0" : simplifiedExpression.get(i).get(j);
-					output += " " + value;
-				}
-				output += "\nb " + (this.numVars + boundIndex)
-						+ " "    + simplifiedExpression.get(i).get(this.numVars)
-						+ " "	 + simplifiedExpression.get(i).get(this.numVars+1) + "\n";
-				boundIndex += 1;
-			}
-			this.outputWriter.write(output);
-			this.outputWriter.write("eoa");
-			this.outputWriter.newLine();
-			
-		} catch (IOException e) {
-			// ignore
 		}
 		
 		return smtConfig.responseFactory.success();
@@ -206,6 +176,18 @@ public class Solver_peticodiac extends Solver_test implements ISolver {
 		
 		// We use this adapter only to generate the intermediate input format for peticodaic
 		System.out.println("Peticodiac check_sat not supported");
+		try {
+			System.out.println("About to exit and or Expression contains = " + orExpressionHasIdenticalVariable);
+			for (String fileName: this.orExpressionHasIdenticalVariable) {
+				this.analyzerWriter.write(fileName);
+				this.analyzerWriter.newLine();
+			}
+			this.analyzerWriter.close();
+			System.out.println("Peticodiac outputWriter closed");
+		} catch (IOException e) {
+			// ignore
+			System.out.println("Peticodiac outputWriter close failed");
+		}
 		return smtConfig.responseFactory.unsupported();
 	}
 	
@@ -289,12 +271,6 @@ public class Solver_peticodiac extends Solver_test implements ISolver {
 		IResponse status = super.set_logic(logicName, pos);
 		if (status.isError()) {return status;}
 		
-		try {
-			this.outputWriter.write("# set_logic: " + logicName);
-			this.outputWriter.newLine();
-		} catch (IOException e) {
-			// ignore
-		}
 		return smtConfig.responseFactory.success();
 	}
 	
@@ -304,12 +280,6 @@ public class Solver_peticodiac extends Solver_test implements ISolver {
 		if (status.isError()) {return status;}
 		
 		System.out.println("Peticodiac set_option not supported with key = [" + key.toString() + "] and value <" + value.toString() + ">");
-		try {
-			this.outputWriter.write("# " + key.toString() + ": " + value.toString());
-			this.outputWriter.newLine();
-		} catch (IOException e) {
-			// ignore
-		}
 		return smtConfig.responseFactory.unsupported();
 	}
 
@@ -328,14 +298,6 @@ public class Solver_peticodiac extends Solver_test implements ISolver {
 		if (status.isError()) {return status;}
 		
 		System.out.println("Peticodiac set_info with key = [" + key.toString() + "] and value = <" + value.toString() + "> with success");
-		try {
-			if (!":source".equals(key.toString().toLowerCase())) {
-				this.outputWriter.write("# " + key.toString() + ": " + value.toString());
-				this.outputWriter.newLine();
-			}
-		} catch (IOException e) {
-			// ignore
-		}
 		return smtConfig.responseFactory.success();
 	}
 
@@ -411,10 +373,25 @@ public class Solver_peticodiac extends Solver_test implements ISolver {
 	public /*@Nullable*/ List<ArrayList<String>> translate(IExpr expr, SortedSet<String> expressionVariables) throws IVisitor.VisitorException {
 		Translator exprTranslator = new Translator(expressionVariables);
 		Deque<Object> returnedExpr = expr.accept(exprTranslator);
-		System.out.println("returnedExpr = " + returnedExpr);
-		System.out.println("==== translator queue 2 = " + exprTranslator.getExpressionQueue2());
-		List<ArrayList<String>> translatedExpression2 = exprTranslator.getPeticodiacFormat2();
-		System.out.println("==== expressions 2 = " + translatedExpression2.toString());
+		//System.out.println("returnedExpr = " + returnedExpr);
+		//System.out.println("==== translator queue 2 = " + exprTranslator.getExpressionQueue2());
+		// List<ArrayList<String>> translatedExpression2 = exprTranslator.getPeticodiacFormat2();
+		boolean orExpressionResult = exprTranslator.getOrExpressionIdentical();
+		String inputFile = this.smtConfig.files.get(0).toString();
+		String inputFilename = inputFile.substring(inputFile.lastIndexOf('/') + 1);
+		
+		if (orExpressionResult) {
+			try {
+//				this.analyzerWriter.write(inputFilename);
+//				this.analyzerWriter.newLine();
+				orExpressionHasIdenticalVariable.add(inputFilename);
+			} catch(Exception e) {
+				System.out.println("Trying to write to analyzer failed");
+			}
+			
+		}
+		List<ArrayList<String>> translatedExpression2 = new ArrayList<ArrayList<String>>();
+		//System.out.println("==== expressions 2 = " + translatedExpression2.toString());
 		return translatedExpression2;
 	}
 	
@@ -422,14 +399,21 @@ public class Solver_peticodiac extends Solver_test implements ISolver {
 		private HashMap<String, Deque<Object>> letSymbolHash;
 		private Deque<Object> expressionQueue2;
 		private List<ArrayList<String>> expressions2;
+		private boolean allOrExpressionIdentical;
 		
 		public Translator(SortedSet<String> expressionVariables) {
-			System.out.println("In Translator creating visitor");
+			//System.out.println("In Translator creating visitor");
 			letSymbolHash = new HashMap<String, Deque<Object>>();
 			expressionQueue2 = new ArrayDeque<Object>();
 			expressions2 = new ArrayList<ArrayList<String>>();
 			expressions2.add(new ArrayList<String>(expressionVariables)); // For first row symbol list
 			expressions2.add(new ArrayList<String>(Collections.nCopies(expressionVariables.size() + 2, "na"))); // For second row first expression
+			
+			allOrExpressionIdentical = true;
+		}
+		
+		public boolean getOrExpressionIdentical() {
+			return allOrExpressionIdentical;
 		}
 		
 		public String getExpressionQueue2() {
@@ -455,7 +439,7 @@ public class Solver_peticodiac extends Solver_test implements ISolver {
 		}
 		
 		private void updateCoefficient2(String exprSymbol, String exprCoefficient) {
-			System.out.println("=== DEBUG: symbol = " + exprSymbol + " coeff = " + exprCoefficient);
+			//System.out.println("=== DEBUG: symbol = " + exprSymbol + " coeff = " + exprCoefficient);
 			int index = expressions2.get(0).indexOf(exprSymbol);
 			int listSize = expressions2.size();
 			Double existingCoeff = Double.valueOf(expressions2.get(listSize-1).get(index));
@@ -471,9 +455,9 @@ public class Solver_peticodiac extends Solver_test implements ISolver {
 		}
 		private Deque<String> simplifyOperandInExpression(Deque<String> expression) {
 			Deque<String> combinedExpression = new ArrayDeque<String>();
-			System.out.println("================== Simplify operand in expression ===================");
+			//System.out.println("================== Simplify operand in expression ===================");
 			while (!expression.isEmpty()) {
-				System.out.println(">> >> In operand sub expression new queue >> " + combinedExpression.toString());
+				//System.out.println(">> >> In operand sub expression new queue >> " + combinedExpression.toString());
 				String item = expression.poll();
 				// Parse the variable to handle the edge case when a symbol has no coefficient
 				// Set all variable coefficients to 1 to begin with
@@ -526,9 +510,9 @@ public class Solver_peticodiac extends Solver_test implements ISolver {
 		
 		private Deque<String> negateOperandInExpression(Deque<String> expression) {
 			Deque<String> negatedExpression = new ArrayDeque<String>();
-			System.out.println("================== Negate operator in expression ===================");
+			//System.out.println("================== Negate operator in expression ===================");
 			while (!expression.isEmpty()) {
-				System.out.println(">> >> In negate sub expression new queue >> " + negatedExpression.toString());
+				//System.out.println(">> >> In negate sub expression new queue >> " + negatedExpression.toString());
 				String item = expression.poll();
 				
 				String negatedItem = "-" + item;
@@ -560,24 +544,24 @@ public class Solver_peticodiac extends Solver_test implements ISolver {
 			Deque<String> LHS = (ArrayDeque<String>)translateExpressionQueue.poll();
 			Deque<String> RHS = (ArrayDeque<String>)translateExpressionQueue.poll();
 			String operator = (String)translateExpressionQueue.poll();
-			System.out.println("<<<<<<< LHS = " + LHS);
-			System.out.println("<<<<<<< RHS = " + RHS);
-			System.out.println("<<<<<<< operator = " + operator);
+			//System.out.println("<<<<<<< LHS = " + LHS);
+			//System.out.println("<<<<<<< RHS = " + RHS);
+			//System.out.println("<<<<<<< operator = " + operator);
 			
 			Deque<String> combinedLHS = new ArrayDeque<String>();
 			Deque<String> combinedRHS = new ArrayDeque<String>();
 			Float RHSValue = new Float(0.0);
-			System.out.println("================== Processing LHS ===================");
+			//System.out.println("================== Processing LHS ===================");
 			combinedLHS = simplifyOperandInExpression(LHS);
 			
-			System.out.println("<<<<<<< LHS = " + LHS);
-			System.out.println("<<<<<<< RHS = " + RHS);
-			System.out.println("<<<<<<< combinedLHS = " + combinedLHS);
-			System.out.println("<<<<<<< combinedRHS = " + combinedRHS);
-			System.out.println("<<<<<<< RHS value = " + RHSValue);
-			System.out.println("<<<<<<< operator = " + operator);
+			//System.out.println("<<<<<<< LHS = " + LHS);
+			//System.out.println("<<<<<<< RHS = " + RHS);
+			//System.out.println("<<<<<<< combinedLHS = " + combinedLHS);
+			//System.out.println("<<<<<<< combinedRHS = " + combinedRHS);
+			//System.out.println("<<<<<<< RHS value = " + RHSValue);
+			//System.out.println("<<<<<<< operator = " + operator);
 			
-			System.out.println("================== Processing RHS ===================");
+			//System.out.println("================== Processing RHS ===================");
 			combinedRHS = simplifyOperandInExpression(RHS);
 			
 			// Now processing the combined operator. Moving all variables to the left
@@ -614,12 +598,12 @@ public class Solver_peticodiac extends Solver_test implements ISolver {
 			
 			RHS.add(RHSValue.toString());
 			
-			System.out.println("<<<<<<< LHS = " + LHS);
-			System.out.println("<<<<<<< RHS = " + RHS);
-			System.out.println("<<<<<<< combinedLHS = " + combinedLHS);
-			System.out.println("<<<<<<< combinedRHS = " + combinedRHS);
-			System.out.println("<<<<<<< RHS value = " + RHSValue);
-			System.out.println("<<<<<<< operator = " + operator);
+			//System.out.println("<<<<<<< LHS = " + LHS);
+			//System.out.println("<<<<<<< RHS = " + RHS);
+			//System.out.println("<<<<<<< combinedLHS = " + combinedLHS);
+			//System.out.println("<<<<<<< combinedRHS = " + combinedRHS);
+			//System.out.println("<<<<<<< RHS value = " + RHSValue);
+			//System.out.println("<<<<<<< operator = " + operator);
 			
 			if (RHSValue < 0) {
 				LHS = negateOperandInExpression(LHS);
@@ -627,18 +611,22 @@ public class Solver_peticodiac extends Solver_test implements ISolver {
 				operator = negateOperatorInExpression(operator);
 			}
 			
-			System.out.println("Final output for simplification");
-			System.out.println("<<<<<<< LHS = " + LHS);
-			System.out.println("<<<<<<< RHS = " + RHS);
-			System.out.println("<<<<<<< combinedLHS = " + combinedLHS);
-			System.out.println("<<<<<<< combinedRHS = " + combinedRHS);
-			System.out.println("<<<<<<< RHS value = " + RHSValue);
-			System.out.println("<<<<<<< operator = " + operator);
+			//System.out.println("Final output for simplification");
+			//System.out.println("<<<<<<< LHS = " + LHS);
+			//System.out.println("<<<<<<< RHS = " + RHS);
+			//System.out.println("<<<<<<< combinedLHS = " + combinedLHS);
+			//System.out.println("<<<<<<< combinedRHS = " + combinedRHS);
+			//System.out.println("<<<<<<< RHS value = " + RHSValue);
+			//System.out.println("<<<<<<< operator = " + operator);
 			
 			translateExpressionQueue.add(LHS);
 			translateExpressionQueue.add(RHS);
 			translateExpressionQueue.add(operator);
 		}
+		
+//		public List<ArrayList<String>> analyzeOrUsage() {
+//			
+//		}
 		
 		public List<ArrayList<String>> getPeticodiacFormat2() {
 			expressions2.get(0).add("LowerBound");
@@ -647,30 +635,30 @@ public class Solver_peticodiac extends Solver_test implements ISolver {
 			
 			while(!expressionQueue2.isEmpty()) {
 				Deque<Object> translateExpressionQueue = (ArrayDeque<Object>)expressionQueue2.poll();
-				System.out.println("###### in getPeticodiacFormat2 translateExpressionQueue = " + translateExpressionQueue.toString());
+				//System.out.println("###### in getPeticodiacFormat2 translateExpressionQueue = " + translateExpressionQueue.toString());
 				simplifyExpression(translateExpressionQueue);
-				System.out.println("###### in getPeticodiacFormat2 after simplify translateExpressionQueue = " + translateExpressionQueue.toString());
+				//System.out.println("###### in getPeticodiacFormat2 after simplify translateExpressionQueue = " + translateExpressionQueue.toString());
 				
 				while (!translateExpressionQueue.isEmpty()) {
 					
-					System.out.println(">> The expression Stack >> " + expressionStack.toString());
+					//System.out.println(">> The expression Stack >> " + expressionStack.toString());
 					Object subExpression = translateExpressionQueue.poll();
 					String subExpressionClass = subExpression.getClass().getName();
-					System.out.println(subExpressionClass);
-					System.out.println(subExpression.toString());
+					//System.out.println(subExpressionClass);
+					//System.out.println(subExpression.toString());
 					
 					if ("java.util.arraydeque".equals(subExpressionClass.toLowerCase())) {
 						Deque<String> simplifySubExpression = (ArrayDeque<String>)subExpression;
-						System.out.println("SubExpression = array deque with items = " + simplifySubExpression);
+						//System.out.println("SubExpression = array deque with items = " + simplifySubExpression);
 						while (!simplifySubExpression.isEmpty()) {
-							System.out.println(">> >> In simplify sub expression Stack >> " + expressionStack.toString());
+							//System.out.println(">> >> In simplify sub expression Stack >> " + expressionStack.toString());
 							String item = simplifySubExpression.poll();
 							expressionStack.push(item);
 						} // End the while loop for SimplifySubExpression
 					} else if ("java.lang.string".equals(subExpressionClass.toLowerCase())) {
 						String item = (String)subExpression;
-						System.out.println("SubExpression = string with items = " + item);
-						System.out.println(">> >> In simplify sub expression Stack >> " + expressionStack.toString());
+						//System.out.println("SubExpression = string with items = " + item);
+						//System.out.println(">> >> In simplify sub expression Stack >> " + expressionStack.toString());
 						
 						if (">=".equals(item)) {
 							String lowerBound = ">=:" + expressionStack.pop();
@@ -708,28 +696,32 @@ public class Solver_peticodiac extends Solver_test implements ISolver {
 		
 		@Override
 		public Deque<Object> visit(INumeral e) throws IVisitor.VisitorException {
-			System.out.println("Visiting numeral = " + e.toString());
+			//System.out.println("Visiting numeral = " + e.toString());
 			Deque<Object> result = new ArrayDeque<Object>();
-			result.add(e.value().toString());
+			//result.add(e.value().toString());
 			return result;
 		}
 		
 		@Override
 		public Deque<Object> visit(IDecimal e) throws IVisitor.VisitorException {
-			System.out.println("Visiting Decimal = " + e.toString());
+			//System.out.println("Visiting Decimal = " + e.toString());
 			Deque<Object> result = new ArrayDeque<Object>();
-			result.add(e.value().toString());
+			//result.add(e.value().toString());
 			return result;
 		}
 		
 		private Deque<Object> flattenDeque(Deque<Object> expressionQueue) {
 			Deque<Object> result = new ArrayDeque<Object>();
-			String operator = (String)expressionQueue.removeLast();
 			
 			while (!expressionQueue.isEmpty()) {
-				result.addAll((Deque<Object>)expressionQueue.poll());
+				//System.out.println(expressionQueue.peek().getClass().toString().toLowerCase());
+				if ("class java.lang.string".equals(expressionQueue.peek().getClass().toString().toLowerCase())) {
+					result.add(expressionQueue.poll());
+				} else if ("class java.util.arraydeque".equals(expressionQueue.peek().getClass().toString().toLowerCase())) {
+					result.addAll(this.flattenDeque((Deque<Object>)expressionQueue.poll()));
+					//result.addAll((Deque<Object>)expressionQueue.poll());
+				}
 			}
-			result.add(operator);
 			return result;
 		}
 		
@@ -742,39 +734,43 @@ public class Solver_peticodiac extends Solver_test implements ISolver {
 			}
 			
 			Deque<Object> result = new ArrayDeque<Object>();
+			
 			while (iter.hasNext()) {
-				System.out.println("== Iteration has next: ");
 				Deque<Object> fcnname = iter.next().accept(this);
+				//System.out.println("Inside iteration and fcnname = " + fcnname);
 				result.add(fcnname);
 			}
-			System.out.println("Visiting FcnExpr = " + e.toString());
 			
-			if (e.toString().startsWith("(") &&
-					("<=".equals(e.toString().substring(1, 3))  ||
-					 ">=".equals(e.toString().substring(1, 3))  )) {
-				result.add(e.toString().substring(1, 3));
-				this.expressionQueue2.add(result);
-				System.out.println("========= expressionQueue2 = " + this.expressionQueue2);
-			} else if (e.toString().startsWith("(") &&
-					("<".equals(e.toString().substring(1, 2))  ||
-					 ">".equals(e.toString().substring(1, 2))  ||
-					 "=".equals(e.toString().substring(1, 2))  )) {
-				result.add(e.toString().substring(1, 2));
-				this.expressionQueue2.add(result);
-				System.out.println("========= expressionQueue2 = " + this.expressionQueue2);
-			} else if (e.toString().startsWith("(") &&
-					("*".equals(e.toString().substring(1, 2))  ||
-					 "/".equals(e.toString().substring(1, 2))  ||
-					 "+".equals(e.toString().substring(1, 2))  ||
-					 "-".equals(e.toString().substring(1, 2))  ||
-					 "%".equals(e.toString().substring(1, 2))  )) {
-				result.add(e.toString().substring(1, 2));
-				result = flattenDeque(result);
-			} else if (e.toString().startsWith("(") && "and ".equals(e.toString().substring(1,  5).toLowerCase())) {
-				result.add(e.toString().substring(1, 4));
-				result = flattenDeque(result);
-			} else {
-				result.add(e.toString());
+			if (e.toString().startsWith("(") && "or ".equals(e.toString().substring(1,  4).toLowerCase())) {				
+				//result.add(e.toString().substring(1, 3));
+				
+				Deque<Object> element1 = (ArrayDeque<Object>)result.removeLast();
+				Deque<Object> element2 = (ArrayDeque<Object>)result.removeLast();
+				
+				System.out.println("The value in result before flatten = " + element1);
+				element1 = this.flattenDeque(element1);
+				//System.out.println("The result after flatten = " + element1);
+				
+				//System.out.println("The value in result before flatten = " + element2);
+				element2 = this.flattenDeque(element2);
+				//System.out.println("The result after flatten = " + element2);
+				if (element1.containsAll(element2) && element2.containsAll(element1)) {
+					System.out.println("VVVVVVVVVVV Yes, we have same elements in the or");
+				} else {
+					System.out.println("NNNNNNNNNNNN No, not the same elements in the or");
+					allOrExpressionIdentical = false;
+				}
+				
+				Deque<Object> orExpression = new ArrayDeque<Object>();
+				orExpression.add(element1);
+				orExpression.add(element2);
+				orExpression.add(e.toString().substring(1, 3));
+				
+				this.expressionQueue2.add(orExpression);
+				//System.out.println("######### Found or with e value = " + e.args().toString());
+				//System.out.println("######### Found or with result value = " + result);
+				//System.out.println("====##########++++++++ element1 = " + element1 + " element2 = " + element2);
+				//System.out.println("========= expressionQueue2 = " + this.expressionQueue2);
 			}
 			
 			return result;
@@ -782,10 +778,10 @@ public class Solver_peticodiac extends Solver_test implements ISolver {
 		
 		@Override
 		public Deque<Object> visit(ISymbol e) throws IVisitor.VisitorException {
-			System.out.println("Symbol is " + e.value());
+			//System.out.println("Symbol is " + e.value());
 			Deque<Object> result = new ArrayDeque<Object>();
 			if (letSymbolHash.containsKey(e.value())) {
-				System.out.println("==== Yes this is a let variable and substitution = " + letSymbolHash.get(e.value()));
+				//System.out.println("==== Yes this is a let variable and substitution = " + letSymbolHash.get(e.value()));
 				Deque<Object> substituteValue = new ArrayDeque<Object>(letSymbolHash.get(e.value()));
 				while (!substituteValue.isEmpty()) {
 					Object value = (Object)substituteValue.poll();
@@ -800,21 +796,21 @@ public class Solver_peticodiac extends Solver_test implements ISolver {
 		
 		@Override
 		public Deque<Object> visit(ILet e) throws IVisitor.VisitorException {
-			System.out.println("Let expr is " + e.bindings().toString());
+			//System.out.println("Let expr is " + e.bindings().toString());
 			
 			for (IBinding d: e.bindings()) {
 				Deque<Object> let_result;
-				System.out.println("==>>> binding d = " + d.toString());
+				//System.out.println("==>>> binding d = " + d.toString());
 				String variableKey = d.parameter().toString();
 				let_result = d.expr().accept(this);
-				System.out.println(" >>>>>>> Let binding let_result = " + let_result);
+				//System.out.println(" >>>>>>> Let binding let_result = " + let_result);
 				Deque<Object> variableValueQueue = new ArrayDeque<Object>(let_result);
-				System.out.println("    bind key = " + variableKey + " value = " + variableValueQueue.toString());
+				//System.out.println("    bind key = " + variableKey + " value = " + variableValueQueue.toString());
 				letSymbolHash.put(variableKey, variableValueQueue);
 			}
 			Deque<Object> result = new ArrayDeque<Object>();
 			result.add(e.expr().accept(this).toString());
-			System.out.println("=== >>> Return from the let " + result);
+			//System.out.println("=== >>> Return from the let " + result);
 			return result;
 		}
 	}
