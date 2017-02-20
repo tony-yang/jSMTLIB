@@ -9,6 +9,7 @@ export JAVA_HOME="/Library/Java/JavaVirtualMachines/jdk1.8.0_111.jdk/Contents/Ho
 version=`cat ../SMTFeature/feature.xml | head | grep -v encoding | grep "version=" | sed -e 's/ //g' -e 's/version=\"//' -e 's/\"//'`
 echo Building version $version
 cat src/org/smtlib/resources/version.template | sed -e "s/DEV/${version}/" > src/org/smtlib/resources/version.properties
+mkdir -p bin/org/smtlib/resources
 cp src/org/smtlib/resources/version.properties bin/org/smtlib/resources/version.properties
 
 rm -rf temp
